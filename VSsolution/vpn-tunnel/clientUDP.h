@@ -4,6 +4,7 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include "baseCommunication.h"
+#include "packetManipulation.h"
 #include "baseWinDivert.h"
 
 #pragma comment(lib, "ws2_32.lib")
@@ -40,7 +41,7 @@ private:
 };
 
 ClientUDP::ClientUDP()
-	:BaseCommunication(), BaseWinDivert("outbound && !loopback && udp.DstPort != 312", 0),
+    :BaseCommunication(), BaseWinDivert("outbound and !loopback", 0),
 	PORT(312), ADDRESS("10.10.10.12"),
     wsaData(), serverAddr()
 {
@@ -62,7 +63,8 @@ inline void ClientUDP::startLoop()
 inline void ClientUDP::socketLoop()
 {
     std::cout << "loop!" << std::endl;
-    char packet[MAX_PACKET_SIZE] = {};
+    status = 1;
+    unsigned char packet[WINDIVERT_MTU_MAX];
     UINT packetLen = sizeof(packet);
     UINT recvLen = NULL;
     WINDIVERT_ADDRESS addr;
@@ -74,11 +76,24 @@ inline void ClientUDP::socketLoop()
     while (status)
     {
         if (!recvPacket(packet, packetLen, &recvLen, &addr)) {
-            std::cerr << "Error receving packet. Error code: " << GetLastError() << std::endl;
+            std::cerr << "Error receving packet! Error code: " << GetLastError() << std::endl;
             continue;
         }
 
-        bytesSent = sendto(clientSocket, packet, recvLen, 0, to, toLen);
+        if (addr.IPv6)
+        {
+            sendPacket(packet, recvLen, NULL, &addr);
+            continue;
+        }
+        else if(PM::isLocalPacket(packet))
+        {
+            sendPacket(packet, recvLen, NULL, &addr);
+            continue;
+        }
+
+        PM::displayIPv4HeaderInfo(packet, recvLen);
+
+        bytesSent = sendto(clientSocket, reinterpret_cast<char*>(packet), recvLen, 0, to, toLen);
 
         switch (bytesSent)
         {

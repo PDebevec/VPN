@@ -8,12 +8,12 @@ int main(int argc, char* argv[]) {
 	{
 		ServerUDP sudp;
 		sudp.startLoop();
+		system("pause");
 	}
 	else if(!strcmp(argv[1], "client"))
 	{
 		ClientUDP cudp;
 		cudp.startLoop();
+		system("pause");
 	}
-
-	system("pause");
 }

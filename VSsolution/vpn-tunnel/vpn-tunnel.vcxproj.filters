@@ -28,12 +28,6 @@
     </CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="UDPsocket.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="UDPserver.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="communication.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -47,6 +41,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="serverUDP.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="packetManipulation.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

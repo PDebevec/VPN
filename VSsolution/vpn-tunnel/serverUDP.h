@@ -3,6 +3,7 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include "baseCommunication.h"
+#include "packetManipulation.h"
 #include "baseWinDivert.h"
 
 class ServerUDP : protected BaseCommunication, protected BaseWinDivert
@@ -36,7 +37,7 @@ private:
 };
 
 ServerUDP::ServerUDP()
-	:BaseCommunication(), BaseWinDivert("inbound && ip.DstAddr == 10.10.20.20", 0),
+	:BaseCommunication(), BaseWinDivert("true", WINDIVERT_FLAG_SNIFF),
 	ADDRESS("10.10.10.12"), PORT(312),
 	serverAddr(), wsaData()
 {
@@ -59,15 +60,15 @@ inline void ServerUDP::startLoop()
 inline void ServerUDP::socketLoop()
 {
 	std::cout << "loop!" << std::endl;
-	char buffer[MAX_PACKET_SIZE];
-	//char* buffer = (char*)malloc(sizeof(char) * MAX_PACKET_SIZE);
+	status = 1;
+	char buffer[WINDIVERT_MTU_MAX];
+	unsigned char ubuffer[WINDIVERT_MTU_MAX];
 	int bufferLen = sizeof(buffer);
 	sockaddr_in clientAddr;
 	int fromLen = sizeof(clientAddr);
-	int sizeofHeaders = sizeof(WINDIVERT_IPHDR) + sizeof(WINDIVERT_UDPHDR);
 	WINDIVERT_ADDRESS addr;
-	int sizeofAddr = sizeof(addr);
 	int bytesRecvd = NULL;
+	UINT sendLen = NULL;
 
 	while (status)
 	{
@@ -78,14 +79,19 @@ inline void ServerUDP::socketLoop()
 			continue;
 			break;
 		case SOCKET_ERROR:
-			std::cerr << "Error receving udp data. Error code: " << WSAGetLastError() << std::endl;
+			std::cerr << "Error receving udp data! Error code: " << WSAGetLastError() << std::endl;
 			continue;
 			break;
 		}
-		
-		if (!sendPacket(buffer, bytesRecvd, NULL, &addr)) {
+
+		std::memcpy(ubuffer, buffer, bytesRecvd);
+
+		PM::displayIPv4HeaderInfo(ubuffer, bytesRecvd);
+
+		if (!sendPacket(ubuffer, bufferLen, &sendLen, &addr)) {
 			std::cerr << "Error sending packet! Error code: " << GetLastError() << std::endl;
 		}
+		return;
 	}
 }
 

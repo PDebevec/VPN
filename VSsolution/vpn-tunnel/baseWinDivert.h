@@ -6,9 +6,6 @@
 class BaseWinDivert
 {
 public:
-	#define MTU 1500
-	#define MAX_PACKET_SIZE 0xffff
-	
 	BaseWinDivert(const char* WDfilter, UINT64 WDflag);
 
 	bool recvPacket(void* pPacket, UINT packetLen, UINT* pRecvLen, WINDIVERT_ADDRESS* pAddr);
@@ -77,5 +74,6 @@ BaseWinDivert::~BaseWinDivert()
 {
 	WinDivertClose(handle);
 	CloseHandle(handle);
+	system("sc stop windivert");
 	delete filter;
 }

@@ -158,9 +158,8 @@
     <ClInclude Include="baseWinDivert.h" />
     <ClInclude Include="clientUDP.h" />
     <ClInclude Include="communication.h" />
+    <ClInclude Include="packetManipulation.h" />
     <ClInclude Include="serverUDP.h" />
-    <ClInclude Include="UDPserver.h" />
-    <ClInclude Include="UDPsocket.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
