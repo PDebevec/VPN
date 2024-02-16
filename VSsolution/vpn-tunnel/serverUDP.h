@@ -21,7 +21,9 @@ private:
 	bool startWinsock();
 	bool stopWinsock();
 
-	void socketLoop();
+	bool startThreads();
+	void socketToWD();
+	void WDToSocket();
 
 private:
 	SOCKET serverSocket;
@@ -31,15 +33,12 @@ private:
 
 	const u_short PORT;
 	const char* ADDRESS;
-
-	std::thread T1;
-	std::thread T2;
 };
 
 ServerUDP::ServerUDP()
-	:BaseCommunication(), BaseWinDivert("true", WINDIVERT_FLAG_SNIFF),
-	ADDRESS("10.10.10.12"), PORT(312),
-	serverAddr(), wsaData()
+	:BaseCommunication(), BaseWinDivert("!loopback or !ipv6 or udp.DstPort != 312", 0),
+	ADDRESS("10.20.20.20"), PORT(312),
+	wsaData(), serverAddr()
 {
 	serverSocket = NULL;
 	status = 0;
@@ -54,45 +53,133 @@ inline void ServerUDP::startLoop()
 	{
 		return;
 	};
-	socketLoop();
+	if (!startThreads())
+	{
+		return;
+	}
+	while (true)
+	{
+
+	}
 }
 
-inline void ServerUDP::socketLoop()
+inline void ServerUDP::socketToWD()
 {
 	std::cout << "loop!" << std::endl;
 	status = 1;
 	char buffer[WINDIVERT_MTU_MAX];
-	unsigned char ubuffer[WINDIVERT_MTU_MAX];
+	UINT8 ubuffer[WINDIVERT_MTU_MAX];
 	int bufferLen = sizeof(buffer);
 	sockaddr_in clientAddr;
 	int fromLen = sizeof(clientAddr);
 	WINDIVERT_ADDRESS addr;
 	int bytesRecvd = NULL;
 	UINT sendLen = NULL;
-
+	int bytesSent = NULL;
 	while (status)
 	{
+		PM::NULLpacket(buffer, bufferLen);
+
 		bytesRecvd = recvfrom(serverSocket, buffer, bufferLen, 0, (struct sockaddr*)&clientAddr, &fromLen);
 		switch (bytesRecvd)
 		{
 		case 0:
 			continue;
+		case SOCKET_ERROR:
+			std::cerr << "Error receving udp data! WSA Error code: " << WSAGetLastError() << std::endl;
+			continue;
+		}
+		
+		PM::NULLpacket(ubuffer, bufferLen);
+
+		std::memcpy(ubuffer, buffer, bytesRecvd - sizeof(INT64));
+		std::memcpy(&addr.Timestamp, buffer + (bytesRecvd - sizeof(INT64)), sizeof(INT64));
+
+		PM::changePacketSrcIP(ubuffer, 10,30,30,30);
+
+		PM::increaseTTL(ubuffer);
+
+		addr.Outbound = 1;
+		addr.Flow.EndpointId = (UINT64)7;
+		addr.Network.IfIdx = (UINT32)7;
+		addr.Reflect.Timestamp = (INT64)7;
+		addr.Reserved3[0] = (UINT8)7;
+		addr.Socket.EndpointId = (UINT64)7;
+		addr.Socket.EndpointId = (UINT64)7;
+
+		if (WinDivertHelperCalcChecksums(ubuffer, bytesRecvd-sizeof(INT64), &addr, 0) == FALSE)
+		{
+			continue;
+		}
+
+		if (!sendPacket(ubuffer, bytesRecvd-sizeof(INT64), &sendLen, &addr)) {
+			std::cerr << "Error sending packet! WD Error code: " << GetLastError() << std::endl;
+		}
+		std::cout << "injecting ";
+	}
+}
+
+inline void ServerUDP::WDToSocket()
+{
+	std::cout << "loop!" << std::endl;
+	status = 1;
+	char buffer[WINDIVERT_MTU_MAX];
+	UINT8 ubuffer[WINDIVERT_MTU_MAX];
+	int bufferLen = sizeof(buffer);
+	sockaddr_in clientAddr;
+	int fromLen = sizeof(clientAddr);
+	WINDIVERT_ADDRESS addr;
+	int bytesSent = NULL;
+	UINT recvLen = NULL;
+	while (status)
+	{
+		PM::NULLpacket(ubuffer, bufferLen);
+
+		if (!recvPacket(ubuffer, bufferLen, &recvLen, &addr)) {
+			std::cerr << "Error receving packet! WD Error code: " << GetLastError() << std::endl;
+			continue;
+		}
+		if (addr.Outbound)
+		{
+			sendPacket(ubuffer, recvLen, NULL, &addr);
+			continue;
+		}
+		if (!PM::isDstIP(ubuffer, 10,30,30,30))
+		{
+			sendPacket(ubuffer, recvLen, NULL, &addr);
+			continue;
+		}
+		PM::DM::destinationIPAddress(ubuffer);
+		std::cout << "recving " << std::endl;
+
+		PM::NULLpacket(buffer, bufferLen);
+
+		std::memcpy(buffer, ubuffer, recvLen);
+		std::memcpy(buffer+recvLen, &addr.Timestamp, sizeof(INT64));
+
+		bytesSent = sendto(serverSocket, buffer, recvLen+sizeof(INT64), 0, (struct sockaddr*)&clientAddr, fromLen);
+
+		switch (bytesSent)
+		{
+		case 0:
+			std::cerr << "No data" << std::endl;
 			break;
 		case SOCKET_ERROR:
-			std::cerr << "Error receving udp data! Error code: " << WSAGetLastError() << std::endl;
-			continue;
+			std::cerr << "Error sending udp data! WSA Error code: " << WSAGetLastError() << std::endl;
+		default:
 			break;
 		}
-
-		std::memcpy(ubuffer, buffer, bytesRecvd);
-
-		PM::displayIPv4HeaderInfo(ubuffer, bytesRecvd);
-
-		if (!sendPacket(ubuffer, bufferLen, &sendLen, &addr)) {
-			std::cerr << "Error sending packet! Error code: " << GetLastError() << std::endl;
-		}
-		return;
 	}
+}
+
+inline bool ServerUDP::startThreads()
+{
+	std::thread t1(&ServerUDP::socketToWD, this);
+	std::thread t2(&ServerUDP::WDToSocket, this);
+
+	t1.detach();
+	t2.detach();
+	return true;
 }
 
 inline bool ServerUDP::startWinsock()

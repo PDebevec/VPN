@@ -25,7 +25,9 @@ private:
 	bool startWinsock();
     bool stopWinsock();
 
-    void socketLoop();
+    bool startThreads();
+    void socketToWD();
+    void WDToSocket();
 
 private:
 	SOCKET clientSocket;
@@ -35,14 +37,11 @@ private:
 
 	const u_short PORT;
 	const char* ADDRESS;
-
-	std::thread T1;
-	std::thread T2;
 };
 
 ClientUDP::ClientUDP()
-    :BaseCommunication(), BaseWinDivert("outbound and !loopback", 0),
-	PORT(312), ADDRESS("10.10.10.12"),
+    :BaseCommunication(), BaseWinDivert("!loopback or !ipv6 or udp.DstPort != 312", 0),
+    ADDRESS("10.20.20.20"), PORT(312),
     wsaData(), serverAddr()
 {
     clientSocket = NULL;
@@ -54,46 +53,111 @@ inline void ClientUDP::startLoop()
     if (!startBase()) {
         return;
     }
-    if(!startWinsock()) {
+    if (!startWinsock()) {
         return;
     }
-    socketLoop();
+    if (!startThreads()) {
+        return;
+    }
+
+    while (true)
+    {
+
+    }
 }
 
-inline void ClientUDP::socketLoop()
+inline void ClientUDP::socketToWD()
 {
-    std::cout << "loop!" << std::endl;
+    std::cout << "loop! socket to wd" << std::endl;
     status = 1;
-    unsigned char packet[WINDIVERT_MTU_MAX];
-    UINT packetLen = sizeof(packet);
+    char packet[WINDIVERT_MTU_MAX];
+    UINT8 upacket[WINDIVERT_MTU_MAX];
+    UINT packetLen = sizeof(upacket);
     UINT recvLen = NULL;
     WINDIVERT_ADDRESS addr;
-    int sizeofAddr = sizeof(addr);
     int toLen = sizeof(serverAddr);
-    sockaddr* to = (struct sockaddr*)&serverAddr;
-    int bytesSent = NULL;
-
+    UINT sendLen = NULL;
+    int bytesRecvd = NULL;
     while (status)
     {
-        if (!recvPacket(packet, packetLen, &recvLen, &addr)) {
-            std::cerr << "Error receving packet! Error code: " << GetLastError() << std::endl;
-            continue;
-        }
+        PM::NULLpacket(packet, packetLen);
 
-        if (addr.IPv6)
+        bytesRecvd = recvfrom(clientSocket, packet, packetLen, 0, (struct sockaddr*)&serverAddr, &toLen);
+        switch (bytesRecvd)
         {
-            sendPacket(packet, recvLen, NULL, &addr);
+        case 0:
+            continue;
+        case SOCKET_ERROR:
+            std::cerr << "Error receving udp data! WSA Error code: " << WSAGetLastError() << std::endl;
             continue;
         }
-        else if(PM::isLocalPacket(packet))
+
+        PM::NULLpacket(upacket, packetLen);
+
+        std::memcpy(upacket, packet, bytesRecvd - sizeof(INT64));
+        std::memcpy(&addr.Timestamp, packet+(recvLen-sizeof(INT64)), sizeof(INT64));
+
+        std::cout << addr.Timestamp << std::endl;
+
+        PM::changePacketDstIP(upacket, 10,1,1,100);
+
+        addr.Flow.EndpointId = (UINT64)3;
+        addr.Network.IfIdx = (UINT32)3;
+        addr.Reflect.Timestamp = (INT64)3;
+        addr.Reserved3[0] = (UINT8)3;
+        addr.Socket.EndpointId = (UINT64)3;
+        addr.Socket.EndpointId = (UINT64)3;
+
+        if (WinDivertHelperCalcChecksums(upacket, packetLen - sizeof(INT64), nullptr, 0) == FALSE)
         {
-            sendPacket(packet, recvLen, NULL, &addr);
             continue;
         }
 
-        PM::displayIPv4HeaderInfo(packet, recvLen);
+        if (!sendPacket(upacket, bytesRecvd - sizeof(INT64), &sendLen, &addr)) {
+            std::cerr << "Error sending packet! WD Error code: " << GetLastError() << std::endl;
+        }
+        std::cout << "injecting " << std::endl;
+    }
+}
 
-        bytesSent = sendto(clientSocket, reinterpret_cast<char*>(packet), recvLen, 0, to, toLen);
+inline void ClientUDP::WDToSocket()
+{
+    std::cout << "loop! wd to socket" << std::endl;
+    status = 1;
+    char packet[WINDIVERT_MTU_MAX];
+    UINT8 upacket[WINDIVERT_MTU_MAX];
+    UINT packetLen = sizeof(upacket);
+    UINT recvLen = NULL;
+    WINDIVERT_ADDRESS addr;
+    int toLen = sizeof(serverAddr);
+    int bytesSent = NULL;
+    while (status)
+    {
+        PM::NULLpacket(upacket, packetLen);
+
+        if (!recvPacket(upacket, packetLen, &recvLen, &addr)) {
+            std::cerr << "Error receving packet! WD Error code: " << GetLastError() << std::endl;
+            continue;
+        }
+
+        if (!addr.Outbound)
+        {
+            sendPacket(upacket, recvLen, NULL, &addr);
+            continue;
+        }
+        if (PM::isLocalPacket(upacket))
+        {
+            sendPacket(upacket, recvLen, NULL, &addr);
+            continue;
+        }
+        std::cout << "recving " << std::endl;
+
+        PM::NULLpacket(packet, packetLen);
+
+        std::memcpy(packet, upacket, recvLen);
+        std::memcpy(packet + recvLen, &addr.Timestamp, sizeof(INT64));
+
+        bytesSent = sendto(clientSocket, packet, recvLen + sizeof(INT64), 0, (struct sockaddr*)&serverAddr, toLen);
 
         switch (bytesSent)
         {
@@ -101,10 +165,21 @@ inline void ClientUDP::socketLoop()
             std::cerr << "No data" << std::endl;
             break;
         case SOCKET_ERROR:
-            std::cerr << "socket error :" << WSAGetLastError() << std::endl;
+            std::cerr << "Error sending udp data! WSA Error code: " << WSAGetLastError() << std::endl;
+        default:
             break;
         }
     }
+}
+
+inline bool ClientUDP::startThreads()
+{
+    std::thread t1(&ClientUDP::socketToWD, this);
+    std::thread t2(&ClientUDP::WDToSocket, this);
+
+    t1.detach();
+    t2.detach();
+    return true;
 }
 
 inline bool ClientUDP::startWinsock()
