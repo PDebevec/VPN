@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\Base">
+      <UniqueIdentifier>{598bf4c9-cfbe-46fb-b875-9ddd1993c558}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Side">
+      <UniqueIdentifier>{f9622e9e-60e3-405e-bb55-33c0d03f48fe}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -28,23 +34,41 @@
     </CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="communication.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="baseWinDivert.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="baseCommunication.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="clientUDP.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="serverUDP.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="packetManipulation.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="baseSocket.h">
+      <Filter>Header Files\Base</Filter>
+    </ClInclude>
+    <ClInclude Include="baseWinDivert.h">
+      <Filter>Header Files\Base</Filter>
+    </ClInclude>
+    <ClInclude Include="VPN.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="basePipe.h">
+      <Filter>Header Files\Base</Filter>
+    </ClInclude>
+    <ClInclude Include="codes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UDPSocket.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TCPSocket.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="tunnel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="safeQueue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="serverTunnel.h">
+      <Filter>Header Files\Side</Filter>
+    </ClInclude>
+    <ClInclude Include="clientTunnel.h">
+      <Filter>Header Files\Side</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -1,19 +1,10 @@
-#include "clientUDP.h"
-#include "serverUDP.h"
-
+#include "VPN.h"
 
 int main(int argc, char* argv[]) {
 
-	if (!strcmp(argv[1], "server"))
-	{
-		ServerUDP sudp;
-		sudp.startLoop();
-		system("pause");
-	}
-	else if(!strcmp(argv[1], "client"))
-	{
-		ClientUDP cudp;
-		cudp.startLoop();
-		system("pause");
-	}
+	VPN vpn(argc, argv);
+	vpn.startVPN(argc, argv);
+	vpn.communicationLoop();
+	system("pause");
+	return 0;
 }

@@ -59,50 +59,53 @@ namespace PM {
         }
 	}
 
-    void changePacketDstIP(UINT8* packet, byte o1, byte o2, byte o3, byte o4) {
-        packet[16] = o1;
-        packet[17] = o2;
-        packet[18] = o3;
-        packet[19] = o4;
+    byte* ipStringToArray(char* ipString) {
+        byte* byteArray = new byte[4];
+
+        char* nextToken = nullptr;
+        char* token = strtok_s(ipString, ".", &nextToken);
+        int i = 0;
+        while (token != nullptr && i < 4) {
+            byteArray[i++] = atoi(token);
+            token = strtok_s(nullptr, ".", &nextToken);
+        }
+
+        delete token;
+        return byteArray;
     }
 
-    void changePacketSrcIP(UINT8* packet, byte o1, byte o2, byte o3, byte o4) {
-        packet[12] = o1;
-        packet[13] = o2;
-        packet[14] = o3;
-        packet[15] = o4;
+    void changePacketDstIP(UINT8* packet, byte* ip) {
+        packet[16] = ip[0];
+        packet[17] = ip[1];
+        packet[18] = ip[2];
+        packet[19] = ip[3];
+    }
+
+    void changePacketSrcIP(UINT8* packet, byte* ip) {
+        packet[12] = ip[0];
+        packet[13] = ip[1];
+        packet[14] = ip[2];
+        packet[15] = ip[3];
     }
 
     void increaseTTL(unsigned char* packet) {
-        packet[8] = 128;
+        packet[8] = 96;
     }
 
-    void appendAddrInfo(char* buffer, WINDIVERT_ADDRESS* addr, size_t& offset) {
-
-    }
-
-    inline void NULLpacket(UINT8* pArray, size_t size) {
-        std::memset(pArray, 0, size - 1);
+    inline bool isDstIP(unsigned char* packet, byte* ip) {
+        return (
+            static_cast<byte>(packet[16]) == ip[0] &&
+            static_cast<byte>(packet[17]) == ip[1] &&
+            static_cast<byte>(packet[18]) == ip[2] &&
+            static_cast<byte>(packet[19]) == ip[3]);
     }
     
-    inline void NULLpacket(char* pArray, size_t size) {
-        std::memset(pArray, 0, size - 1);
-    }
-
-    inline bool isDstIP(unsigned char* packet, int o1, int o2, int o3, int o4) {
+    inline bool isSrcIP(unsigned char* packet, byte* ip) {
         return (
-            static_cast<int>(packet[16]) == o1 && 
-            static_cast<int>(packet[17]) == o2 && 
-            static_cast<int>(packet[18]) == o3 && 
-            static_cast<int>(packet[19]) == o4);
-    }
-    
-    inline bool isSrcIP(unsigned char* packet, int o1, int o2, int o3, int o4) {
-        return (
-            static_cast<int>(packet[12]) == o1 &&
-            static_cast<int>(packet[13]) == o2 &&
-            static_cast<int>(packet[14]) == o3 &&
-            static_cast<int>(packet[15]) == o4);
+            static_cast<byte>(packet[12]) == ip[0] &&
+            static_cast<byte>(packet[13]) == ip[1] &&
+            static_cast<byte>(packet[14]) == ip[2] &&
+            static_cast<byte>(packet[15]) == ip[3]);
     }
 
     UINT16 calculateChecksum(const UINT8* packet, size_t packetSize) {
