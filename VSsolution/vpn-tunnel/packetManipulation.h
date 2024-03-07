@@ -7,7 +7,7 @@
 #include <chrono>
 
 namespace PM {
-    namespace DM {
+    namespace DI {
         inline void version(UINT8* packetBuffer) {
             std::cout << "Version: " << unsigned((packetBuffer[0] >> 4) & 0x0F) << std::endl;
         }
@@ -219,18 +219,18 @@ namespace PM {
 
     void displayIPv4HeaderInfo(UINT8* packetBuffer) {
         std::cout << "----------------------------------------" << std::endl;
-        DM::version(packetBuffer);
-        DM::headerLen(packetBuffer);
-        DM::DSCP(packetBuffer);
-        DM::totalLen(packetBuffer);
-        DM::identification(packetBuffer);
-        DM::falgs(packetBuffer);
-        DM::fragmentOffset(packetBuffer);
-        DM::TTL(packetBuffer);
-        DM::protocol(packetBuffer);
-        DM::headerChecksum(packetBuffer);
-        DM::sourceIPAddress(packetBuffer);
-        DM::destinationIPAddress(packetBuffer);
+        DI::version(packetBuffer);
+        DI::headerLen(packetBuffer);
+        DI::DSCP(packetBuffer);
+        DI::totalLen(packetBuffer);
+        DI::identification(packetBuffer);
+        DI::falgs(packetBuffer);
+        DI::fragmentOffset(packetBuffer);
+        DI::TTL(packetBuffer);
+        DI::protocol(packetBuffer);
+        DI::headerChecksum(packetBuffer);
+        DI::sourceIPAddress(packetBuffer);
+        DI::destinationIPAddress(packetBuffer);
     }
 
     void displayPacketData(const UINT8* packetBuffer, UINT bufferSize) {

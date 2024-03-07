@@ -14,7 +14,7 @@ public:
     ~SafeQueue();
 
     void push(unsigned char* value, unsigned short size);
-    unsigned char* pop(int& len);
+    unsigned char* pop(unsigned int& len);
     bool empty() const;
     size_t size() const;
     void clear();
@@ -35,7 +35,7 @@ void SafeQueue::push(unsigned char* value, unsigned short size) {
     q.push({ value, size });
 }
 
-unsigned char* SafeQueue::pop(int& len) {
+unsigned char* SafeQueue::pop(unsigned int& len) {
     std::unique_lock<std::mutex> lock(mtx);
     if (q.empty()) {
         len = NULL;

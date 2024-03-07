@@ -126,7 +126,7 @@ Tunnel::~Tunnel()
 	delete[] secAddr;
 	for (auto* t : tVec)
 	{
-		t->~thread();
+		t->join();
 	}
 	tVec.clear();
 }

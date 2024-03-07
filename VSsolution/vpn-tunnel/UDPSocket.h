@@ -20,7 +20,7 @@ public:
 	bool initUDPServer();
 	bool initUDPClient();
 
-	bool recvBufferFrom(char* buf, int len, sockaddr* from, int* fromLen, int& recvLen);
+	bool recvBufferFrom(char* buf, int len, sockaddr* from, int* fromLen, UINT& recvLen);
 	bool sendBufferTo(char* buf, int len, sockaddr* to, int toLen, int& sendLen);
 	bool safeRecvBufferFrom(char* buf, int len, sockaddr* from, int* fromLen, int& recvLen);
 	bool safeSendBufferTo(char* buf, int len, sockaddr* to, int toLen, int& sendLen);
@@ -52,6 +52,15 @@ bool UDPSocket::initUDPServer()
 		throw "Error binding UDP socket. WSA error code: " + WSAGetLastError();
 		return false;
 	}
+
+	u_long mode = 1;
+	if (ioctlsocket(soc, FIONBIO, &mode) != 0) {
+		std::cerr << "Failed to set socket to non-blocking mode\n";
+		closesocket(soc);
+		WSACleanup();
+		return 1;
+	}
+
 	udpState = UDP_INITIALIZED;
 	return true;
 }
@@ -74,18 +83,28 @@ bool UDPSocket::initUDPClient()
 		return false;
 	}
 
+	u_long mode = 1;
+	if (ioctlsocket(soc, FIONBIO, &mode) != 0) {
+		std::cerr << "Failed to set socket to non-blocking mode\n";
+		closesocket(soc);
+		WSACleanup();
+		return 1;
+	}
+
 	udpState = UDP_INITIALIZED;
 	return true;
 }
 
-bool UDPSocket::recvBufferFrom(char* buf, int len, sockaddr* from, int* fromLen, int& recvLen)
+bool UDPSocket::recvBufferFrom(char* buf, int len, sockaddr* from, int* fromLen, UINT& recvLen)
 {
 	recvLen = recvfrom(soc, buf, len, 0, from, fromLen);
 	switch (recvLen)
 	{
 	case 0:
-		return false;
+		return true;
 	case SOCKET_ERROR:
+		if (WSAGetLastError() == WSAEWOULDBLOCK)
+			return true;
 		std::cout << "Error recving UDP data from socket. WSA error code: " << WSAGetLastError() << std::endl;
 		return false;
 	default:
