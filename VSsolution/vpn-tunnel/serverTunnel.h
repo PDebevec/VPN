@@ -153,9 +153,11 @@ void ServerTunnel::TCPLoop()
 			break;
 		}
 
+
 		if (!tcp->sendBuffer(buffer, recvLen, sendLen))
 		{
 		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(64));
 	}
 
 	delete[] buffer;
@@ -187,6 +189,7 @@ void ServerTunnel::UDPLoop()
 		while (!caught.empty())
 		{
 			buffer.reset(reinterpret_cast<char*>(caught.pop(&recvLen)));
+
 			if (!udp->sendBufferTo(buffer.get(), recvLen, reinterpret_cast<sockaddr*>(&from), fromLen, sendLen))
 			{
 				printf("Failed to send buffer\n");

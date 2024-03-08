@@ -159,6 +159,7 @@ void ClientTunnel::TCPLoop()
 		if (!tcp->sendBuffer(buffer, recvLen, sendLen))
 		{
 		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(64));
 	}
 
 	delete[] buffer;

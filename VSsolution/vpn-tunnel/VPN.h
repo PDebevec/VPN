@@ -97,7 +97,7 @@ inline void VPN::pipeLoop()
 			comsState = VPN_DESTORY;
 			break;
 		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(13));
+		std::this_thread::sleep_for(std::chrono::milliseconds(64));
 	}
 }
 
