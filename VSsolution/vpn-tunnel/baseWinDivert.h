@@ -13,6 +13,8 @@ public:
 
 	bool recvPacket(void* pPacket, UINT packetLen, UINT* pRecvLen, WINDIVERT_ADDRESS* pAddr);
 	bool sendPacket(const void* pPacket, UINT packetLen, UINT* pSendLen, const WINDIVERT_ADDRESS* pAddr);
+	bool calcualteIPChecksum(void* pPacket, UINT packetLen, WINDIVERT_ADDRESS* pAddr);
+
 
 	~BaseWinDivert();
 
@@ -37,7 +39,7 @@ BaseWinDivert::BaseWinDivert(const char* WDfilter, UINT64 WDflag)
 inline bool BaseWinDivert::recvPacket(void* pPacket, UINT packetLen, UINT* pRecvLen, WINDIVERT_ADDRESS* pAddr)
 {
 	if (!WinDivertRecv(handle, pPacket, packetLen, pRecvLen, pAddr)) {
-		std::cerr << "Error receiving packet. Error code: " << GetLastError() << std::endl;
+		std::cerr << "Error receiving packet. WD Error code: " << GetLastError() << std::endl;
 		return false;
 	}
 	return true;
@@ -46,7 +48,17 @@ inline bool BaseWinDivert::recvPacket(void* pPacket, UINT packetLen, UINT* pRecv
 inline bool BaseWinDivert::sendPacket(const void* pPacket, UINT packetLen, UINT* pSendLen, const WINDIVERT_ADDRESS* pAddr)
 {
 	if (!WinDivertSend(handle, pPacket, packetLen, pSendLen, pAddr)) {
-		std::cerr << "Error sending packet. Error code: " << GetLastError() << std::endl;
+		std::cerr << "Error sending packet. WD Error code: " << GetLastError() << std::endl;
+		return false;
+	}
+	return true;
+}
+
+inline bool BaseWinDivert::calcualteIPChecksum(void* pPacket, UINT packetLen, WINDIVERT_ADDRESS* pAddr)
+{
+	if (WinDivertHelperCalcChecksums(pPacket, packetLen, pAddr,
+		WINDIVERT_HELPER_NO_ICMP_CHECKSUM || WINDIVERT_HELPER_NO_ICMPV6_CHECKSUM) == FALSE) {
+		std::cerr << "Faild to calcualte checksum! WD error code: " << GetLastError() << std::endl;
 		return false;
 	}
 	return true;

@@ -35,7 +35,7 @@ void ClientTunnel::initTunnel()
 	printf("initializing client\n");
 	tcp = new TCPSocket(arg);
 	udp = new UDPSocket(arg);
-	wd = new BaseWinDivert("!loopback and !icmp", 0);
+	wd = new BaseWinDivert("!loopback and !icmp", 0); //WINDIVERT_FLAG_SNIFF
 
 	tcp->initTCPClient();
 	udp->initUDPClient();
@@ -90,11 +90,9 @@ void ClientTunnel::WDLoop()
 	UINT sendLen = NULL;
 	WINDIVERT_ADDRESS addr{};
 	WINDIVERT_ADDRESS injectAddr{};
-	injectAddr.Outbound = 1;
 
 	while (!stopTunnel)
 	{
-		printf(" wd loop ");
 		if (!wd->recvPacket(packet.get(), packetSize, &recvLen, &addr))
 		{
 			break;
@@ -103,9 +101,8 @@ void ClientTunnel::WDLoop()
 		if (addr.IPv6)
 		{
 		}
-		else if (addr.Outbound)
+		else if (addr.Outbound && !PM::isLocalPacket(packet.get()))
 		{
-			printf(" pushed to queue ");
 			caught.push(packet.release(), recvLen);
 			packet.reset(new UINT8[WINDIVERT_MTU_MAX]);
 		}
@@ -116,33 +113,27 @@ void ClientTunnel::WDLoop()
 			injectAddr.Reflect.Timestamp = addr.Reflect.Timestamp;
 			injectAddr.Reserved3[0] = addr.Reserved3[0];
 			injectAddr.Socket.EndpointId = addr.Socket.EndpointId;
-			//injectAddr.Timestamp = addr.Timestamp; //+50000
+			injectAddr.Timestamp = addr.Timestamp;
 
 			wd->sendPacket(packet.get(), recvLen, &sendLen, &addr);
 		}
 
 		while (!recved.empty())
 		{
-			packet.reset(recved.pop(recvLen));
+			packet.reset(recved.pop((int*)&recvLen));
 
 			PM::changePacketDstIP(packet.get(), secAddr);
-			PM::displayIPv4HeaderInfo(packet.get());
 
 			PM::increaseTTL(packet.get());
 
-			if (WinDivertHelperCalcChecksums(packet.get(), recvLen, &injectAddr,
-				WINDIVERT_HELPER_NO_ICMP_CHECKSUM || WINDIVERT_HELPER_NO_ICMPV6_CHECKSUM) == FALSE)
-			{
-				printf("calc check sum failed %i", GetLastError());
+			if (!wd->calcualteIPChecksum(packet.get(), recvLen, &injectAddr))
 				continue;
-			}
 
 			if (!wd->sendPacket(packet.get(), recvLen, &sendLen, &injectAddr))
 			{
 				printf("Error injecting recved packet\n");
 			}
 		}
-		memset(packet.get(), 0, packetSize);
 	}
 
 	packet.reset();
@@ -181,13 +172,12 @@ void ClientTunnel::UDPLoop()
 	int bufferSize = WINDIVERT_MTU_MAX;
 	memset(buffer.get(), 0, bufferSize);
 	int sendLen = NULL;
-	UINT recvLen = NULL;
+	int recvLen = NULL;
 	struct sockaddr from = *reinterpret_cast<struct sockaddr*>(udp->getSocketAddr());
 	int fromLen = sizeof(sockaddr_in);
 
 	while (!stopTunnel)
 	{
-		printf(" udp loop ");
 		if (!udp->recvBufferFrom(buffer.get(), bufferSize, &from, &fromLen, recvLen))
 		{
 			break;
@@ -199,14 +189,13 @@ void ClientTunnel::UDPLoop()
 
 		while (!caught.empty())
 		{
-			buffer.reset(reinterpret_cast<char*>(caught.pop(recvLen)));
+			buffer.reset(reinterpret_cast<char*>(caught.pop((int*)&recvLen)));
 
 			if (!udp->sendBufferTo(buffer.get(), recvLen, &from, fromLen, sendLen))
 			{
 				printf("Failed to send buffer\n");
 			}
 		}
-		memset(buffer.get(), 0, bufferSize);
 	}
 
 	buffer.reset();

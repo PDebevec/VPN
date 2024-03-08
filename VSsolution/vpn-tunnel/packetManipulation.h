@@ -89,7 +89,7 @@ namespace PM {
     }
 
     void increaseTTL(unsigned char* packet) {
-        packet[8] = 96;
+        packet[8] += 5;
     }
 
     inline bool isDstIP(unsigned char* packet, byte* ip) {

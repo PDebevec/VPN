@@ -20,7 +20,7 @@ public:
 	bool initUDPServer();
 	bool initUDPClient();
 
-	bool recvBufferFrom(char* buf, int len, sockaddr* from, int* fromLen, UINT& recvLen);
+	bool recvBufferFrom(char* buf, int len, sockaddr* from, int* fromLen, int& recvLen);
 	bool sendBufferTo(char* buf, int len, sockaddr* to, int toLen, int& sendLen);
 	bool safeRecvBufferFrom(char* buf, int len, sockaddr* from, int* fromLen, int& recvLen);
 	bool safeSendBufferTo(char* buf, int len, sockaddr* to, int toLen, int& sendLen);
@@ -95,7 +95,7 @@ bool UDPSocket::initUDPClient()
 	return true;
 }
 
-bool UDPSocket::recvBufferFrom(char* buf, int len, sockaddr* from, int* fromLen, UINT& recvLen)
+bool UDPSocket::recvBufferFrom(char* buf, int len, sockaddr* from, int* fromLen, int& recvLen)
 {
 	recvLen = recvfrom(soc, buf, len, 0, from, fromLen);
 	switch (recvLen)

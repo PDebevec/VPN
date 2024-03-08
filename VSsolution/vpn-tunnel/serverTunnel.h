@@ -93,7 +93,6 @@ void ServerTunnel::WDLoop()
 
 	while (!stopTunnel)
 	{
-		printf(" wd loop ");
 		if (!wd->recvPacket(packet.get(), packetSize, &recvLen, &addr))
 		{
 			break;
@@ -111,33 +110,27 @@ void ServerTunnel::WDLoop()
 			injectAddr.Reflect.Timestamp = addr.Reflect.Timestamp;
 			injectAddr.Reserved3[0] = addr.Reserved3[0];
 			injectAddr.Socket.EndpointId = addr.Socket.EndpointId;
-			//injectAddr.Timestamp = addr.Timestamp;
+			injectAddr.Timestamp = addr.Timestamp;
 
 			wd->sendPacket(packet.get(), recvLen, &sendLen, &addr);
 		}
 
 		while (!recved.empty())
 		{
-			packet.reset(recved.pop(recvLen));
+			packet.reset(recved.pop((int*)&recvLen));
 
 			PM::changePacketSrcIP(packet.get(), secAddr);
-			PM::displayIPv4HeaderInfo(packet.get());
 
 			PM::increaseTTL(packet.get());
 
-			if (WinDivertHelperCalcChecksums(packet.get(), recvLen, &injectAddr,
-				WINDIVERT_HELPER_NO_ICMP_CHECKSUM || WINDIVERT_HELPER_NO_ICMPV6_CHECKSUM) == FALSE)
-			{
-				printf("calc check sum failed %i", GetLastError());
+			if (!wd->calcualteIPChecksum(packet.get(), recvLen, &injectAddr))
 				continue;
-			}
 
 			if (!wd->sendPacket(packet.get(), recvLen, &sendLen, &injectAddr))
 			{
 				printf("Error injecting recved packet\n");
 			}
 		}
-		memset(packet.get(), 0, packetSize);
 	}
 
 	packet.reset();
@@ -176,13 +169,12 @@ void ServerTunnel::UDPLoop()
 	int bufferSize = WINDIVERT_MTU_MAX;
 	memset(buffer.get(), 0, bufferSize);
 	int sendLen = NULL;
-	UINT recvLen = NULL;
+	int recvLen = NULL;
 	struct sockaddr_in from {};
 	int fromLen = sizeof(sockaddr_in);
 
 	while (!stopTunnel)
 	{
-		printf(" udp loop ");
 		if (!udp->recvBufferFrom(buffer.get(), bufferSize, reinterpret_cast<struct sockaddr*>(&from), &fromLen, recvLen))
 		{
 			break;
@@ -194,13 +186,12 @@ void ServerTunnel::UDPLoop()
 
 		while (!caught.empty())
 		{
-			buffer.reset(reinterpret_cast<char*>(caught.pop(recvLen)));
+			buffer.reset(reinterpret_cast<char*>(caught.pop(&recvLen)));
 			if (!udp->sendBufferTo(buffer.get(), recvLen, reinterpret_cast<sockaddr*>(&from), fromLen, sendLen))
 			{
 				printf("Failed to send buffer\n");
 			}
 		}
-		memset(buffer.get(), 0, bufferSize);
 	}
 
 	buffer.reset();
