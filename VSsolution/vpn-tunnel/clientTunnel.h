@@ -97,11 +97,13 @@ void ClientTunnel::WDLoop()
 		{
 			break;
 		}
+		injectAddr.Timestamp = addr.Timestamp;
+		
 
 		if (addr.IPv6)
 		{
 		}
-		else if (addr.Outbound && !PM::isLocalPacket(packet.get()))
+		else if (addr.Outbound && !PM::isDstIP(packet.get(), servAddr) && !PM::isLocalPacket(packet.get()))
 		{
 			caught.push(packet.release(), recvLen);
 			packet.reset(new UINT8[WINDIVERT_MTU_MAX]);
@@ -113,7 +115,6 @@ void ClientTunnel::WDLoop()
 			injectAddr.Reflect.Timestamp = addr.Reflect.Timestamp;
 			injectAddr.Reserved3[0] = addr.Reserved3[0];
 			injectAddr.Socket.EndpointId = addr.Socket.EndpointId;
-			injectAddr.Timestamp = addr.Timestamp;
 
 			wd->sendPacket(packet.get(), recvLen, &sendLen, &addr);
 		}
@@ -194,7 +195,6 @@ void ClientTunnel::UDPLoop()
 
 			if (!udp->sendBufferTo(buffer.get(), recvLen, &from, fromLen, sendLen))
 			{
-				printf("Failed to send buffer\n");
 			}
 		}
 	}

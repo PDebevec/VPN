@@ -97,6 +97,7 @@ void ServerTunnel::WDLoop()
 		{
 			break;
 		}
+		injectAddr.Timestamp = addr.Timestamp;
 
 		if (!addr.Outbound && PM::isDstIP(packet.get(), secAddr))
 		{
@@ -110,7 +111,6 @@ void ServerTunnel::WDLoop()
 			injectAddr.Reflect.Timestamp = addr.Reflect.Timestamp;
 			injectAddr.Reserved3[0] = addr.Reserved3[0];
 			injectAddr.Socket.EndpointId = addr.Socket.EndpointId;
-			injectAddr.Timestamp = addr.Timestamp;
 
 			wd->sendPacket(packet.get(), recvLen, &sendLen, &addr);
 		}

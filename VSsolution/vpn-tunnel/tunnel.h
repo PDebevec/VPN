@@ -32,6 +32,7 @@ private:
 protected:
 	char** arg;
 	byte* secAddr;
+	byte* servAddr;
 
 	TCPSocket* tcp;
 	UDPSocket* udp;
@@ -56,6 +57,11 @@ Tunnel::Tunnel(char* argv[])
 	tcp = nullptr;
 	udp = nullptr;
 	wd = nullptr;
+
+	char* copyPtr = new char[strlen(argv[2]) + 1];
+	strcpy_s(copyPtr, strlen(argv[2])+1, argv[2]);
+	servAddr = PM::ipStringToArray(copyPtr);
+	delete[] copyPtr;
 	secAddr = PM::ipStringToArray(argv[4]);
 }
 
