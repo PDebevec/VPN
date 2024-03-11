@@ -1,0 +1,16 @@
+{
+  "type": "module",
+  "name": "vpn-gui",
+  "version": "0.0.0",
+  "description": "VPN-GUI",
+  "main": "app.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": {
+    "name": ""
+  },
+  "devDependencies": {
+    "electron": "^29.1.1"
+  }
+}
