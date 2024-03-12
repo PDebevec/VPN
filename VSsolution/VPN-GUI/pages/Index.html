@@ -6,6 +6,31 @@
     <title>Index</title>
 </head>
 <body>
-    <h1>Index</h1>
+    <table>
+        <tr>
+            <th id="info" onclick="handleClick(this)">VPN GUI</th>
+            <td rowspan="2">
+                <iframe id="content" src="./info.html"></iframe>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div>
+                    <h3>Server</h3>
+                    <ul>
+                        <li id="startServer" onclick="handleClick(this)">Start Server</li>
+                        <li id="serverSettings" onclick="handleClick(this)">Settings</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>Client</h3>
+                    <ul>
+                        <li id="startClient" onclick="handleClick(this)">Start Client</li>
+                        <li id="clientSettings" onclick="handleClick(this)">Settings</li>
+                    </ul>
+                </div>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>

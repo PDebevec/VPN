@@ -1,16 +1,14 @@
 'use strict';
 
-import { app, BrowserWindow, Tray, Menu } from 'electron';
-import { join } from 'node:path';
-import { createTray } from './windows.js'
-
-let mainWindow;
+import { app, BrowserWindow } from 'electron';
+import { createTray, createMainWindow, createWorder } from './windows.js'
 
 app.on('ready', () => {
-    mainWindow = new BrowserWindow({ width: 800, height: 600 });
-    mainWindow.loadFile('index.html');
+    const worker = createWorder(); 
 
-    createTray(mainWindow, app);
+    const mainWindow = createMainWindow(app);
+
+    const tray = createTray(mainWindow, app);
 });
 
 app.on('window-all-closed', () => {
