@@ -21,8 +21,8 @@ public:
 	bool openWinDivert();
 	bool closeWinDivert();
 
-private:
 	HANDLE handle;
+private:
 	const char* filter;
 	UINT64 flag;
 
@@ -66,7 +66,7 @@ inline bool BaseWinDivert::calcualteIPChecksum(void* pPacket, UINT packetLen, WI
 
 inline bool BaseWinDivert::openWinDivert()
 {
-	handle = WinDivertOpen(filter, WINDIVERT_LAYER_NETWORK, WINDIVERT_PRIORITY_HIGHEST, flag);
+	handle = WinDivertOpen(filter, WINDIVERT_LAYER_NETWORK, 1000, flag);
 	if (handle == INVALID_HANDLE_VALUE)
 	{
 		std::cerr << "Error oppening handle. Error code: " << GetLastError() << std::endl;

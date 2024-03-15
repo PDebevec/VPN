@@ -1,10 +1,7 @@
-import * as https from 'https'
-import { parentPort } from 'worker_threads'
+import { parentPort } from 'node:worker_threads'
+import * as server from './side/serverConnection.js'
+import * as client from './side/clientConnection.js'
 
 if (parentPort === null) {
     throw new Error('This is not a child thread!')
 }
-
-parentPort.on('message', (message) => {
-    parentPort.postMessage(message)
-})

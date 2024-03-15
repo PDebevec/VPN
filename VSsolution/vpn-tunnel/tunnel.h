@@ -3,7 +3,6 @@
 #include <vector>
 #include <queue>
 #include "safeQueue.h"
-#include "TCPSocket.h"
 #include "UDPSocket.h"
 #include "baseWinDivert.h"
 #include "codes.h"
@@ -16,17 +15,15 @@ public:
 
 	void tunnelLoop();
 	const std::atomic<byte>* getTunnelState();
+	void stopLoop();
 
 	~Tunnel();
 
 private:
 	virtual void initTunnel() {};
-	virtual void connectTunnel() {};
-	void startTunnel();
 	virtual void destroyTunnel() {};
 
 	virtual void WDLoop() {};
-	virtual void TCPLoop() {};
 	virtual void UDPLoop() {};
 
 protected:
@@ -34,7 +31,6 @@ protected:
 	byte* secAddr;
 	byte* servAddr;
 
-	TCPSocket* tcp;
 	UDPSocket* udp;
 	BaseWinDivert* wd;
 
@@ -54,7 +50,6 @@ Tunnel::Tunnel(char* argv[])
 	arg = argv;
 	tunnelState = INIT_STATE;
 	stopTunnel = true;
-	tcp = nullptr;
 	udp = nullptr;
 	wd = nullptr;
 
@@ -82,14 +77,8 @@ void Tunnel::tunnelLoop()
 		case TUNNEL_INIT:
 			initTunnel();
 			break;
-		case TUNNEL_CONNECT:
-			connectTunnel();
-			break;
-		case TUNNEL_START:
-			startTunnel();
-			break;
 		case TUNNEL_LOOP:
-			TCPLoop();
+			WDLoop();
 			break;
 		case TUNNEL_DESTORY:
 			destroyTunnel();
@@ -102,31 +91,20 @@ void Tunnel::tunnelLoop()
 	tunnelState = TUNNEL_STOP;
 }
 
-void Tunnel::startTunnel()
-{
-	printf("starting\n");
-	if (!wd->openWinDivert())
-		throw "Failed to open Windivert!";
-
-	tVec.push_back(new std::thread(&Tunnel::WDLoop, this));
-
-	if (*udp->getUDPState() != UDP_INITIALIZED)
-		throw "Failed to start UDP socket!";
-
-	tVec.push_back(new std::thread(&Tunnel::UDPLoop, this));
-
-	tunnelState = TUNNEL_STARTED;
-	switchState = TUNNEL_LOOP;
-}
-
 inline const std::atomic<byte>* Tunnel::getTunnelState()
 {
 	return &tunnelState;
 }
 
+inline void Tunnel::stopLoop()
+{
+	stopTunnel = true;
+	wd->closeWinDivert();
+	udp->stopUDPSocket();
+}
+
 Tunnel::~Tunnel()
 {
-	delete tcp;
 	delete udp;
 	delete wd;
 	delete[] secAddr;

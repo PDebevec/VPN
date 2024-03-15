@@ -46,9 +46,6 @@
     <ClInclude Include="VPN.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="basePipe.h">
-      <Filter>Header Files\Base</Filter>
-    </ClInclude>
     <ClInclude Include="codes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -61,14 +58,17 @@
     <ClInclude Include="tunnel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="safeQueue.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="serverTunnel.h">
       <Filter>Header Files\Side</Filter>
     </ClInclude>
     <ClInclude Include="clientTunnel.h">
       <Filter>Header Files\Side</Filter>
+    </ClInclude>
+    <ClInclude Include="communication.h">
+      <Filter>Header Files\Base</Filter>
+    </ClInclude>
+    <ClInclude Include="safeQueue.h">
+      <Filter>Header Files\Base</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

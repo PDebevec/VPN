@@ -162,9 +162,9 @@
     </CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="basePipe.h" />
     <ClInclude Include="baseSocket.h" />
     <ClInclude Include="clientTunnel.h" />
+    <ClInclude Include="communication.h" />
     <ClInclude Include="safeQueue.h" />
     <ClInclude Include="serverTunnel.h" />
     <ClInclude Include="TCPSocket.h" />

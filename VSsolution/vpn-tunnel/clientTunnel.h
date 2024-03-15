@@ -10,11 +10,9 @@ public:
 
 private:
 	void initTunnel() override;
-	void connectTunnel() override;
 	void destroyTunnel() override;
 
 	void WDLoop() override;
-	void TCPLoop() override;
 	void UDPLoop() override;
 };
 
@@ -32,36 +30,29 @@ ClientTunnel::ClientTunnel(char* argv[])
 
 void ClientTunnel::initTunnel()
 {
-	printf("initializing client\n");
-	tcp = new TCPSocket(arg);
 	udp = new UDPSocket(arg);
 	wd = new BaseWinDivert("!loopback and !icmp", 0); //WINDIVERT_FLAG_SNIFF
 
-	tcp->initTCPClient();
 	udp->initUDPClient();
 
+	if (*udp->getUDPState() != UDP_INITIALIZED)
+		throw "Error initializing UDP socket!";
+
+	tVec.push_back(new std::thread(&ClientTunnel::UDPLoop, this));
+
+	wd->openWinDivert();
+
+	if (*wd->getState() != WD_OPENED)
+		throw "Error opening WinDivert!";
+
 	tunnelState = TUNNEL_INITIALIZED;
-	switchState = TUNNEL_CONNECT;
-}
-
-void ClientTunnel::connectTunnel()
-{
-	printf("connecting client\n");
-	tcp->connectClient();
-
-	if (*tcp->getTCPState() != TCP_CONNECTED)
-		throw "Error connecting socket!";
-
-	tunnelState = TUNNEL_CONNECTED;
-	switchState = TUNNEL_START;
+	switchState = TUNNEL_LOOP;
 }
 
 void ClientTunnel::destroyTunnel()
 {
-	printf("destroying\n");
 	wd->closeWinDivert();
 	udp->stopUDPSocket();
-	tcp->stopTCPSocket();
 
 	for (auto *t : tVec)
 	{
@@ -85,7 +76,6 @@ void ClientTunnel::WDLoop()
 {
 	std::unique_ptr<UINT8[]> packet(new UINT8[WINDIVERT_MTU_MAX]);
 	UINT packetSize = WINDIVERT_MTU_MAX;
-	memset(packet.get(), 0, packetSize);
 	UINT recvLen = NULL;
 	UINT sendLen = NULL;
 	WINDIVERT_ADDRESS addr{};
@@ -97,8 +87,8 @@ void ClientTunnel::WDLoop()
 		{
 			break;
 		}
+
 		injectAddr.Timestamp = addr.Timestamp;
-		
 
 		if (addr.IPv6)
 		{
@@ -116,7 +106,9 @@ void ClientTunnel::WDLoop()
 			injectAddr.Reserved3[0] = addr.Reserved3[0];
 			injectAddr.Socket.EndpointId = addr.Socket.EndpointId;
 
-			wd->sendPacket(packet.get(), recvLen, &sendLen, &addr);
+			if (!wd->sendPacket(packet.get(), recvLen, &sendLen, &addr)) {
+				continue;
+			}
 		}
 
 		while (!recved.empty())
@@ -142,37 +134,10 @@ void ClientTunnel::WDLoop()
 	tunnelState = TUNNEL_DESTORY;
 }
 
-void ClientTunnel::TCPLoop()
-{
-	char* buffer = new char[WINDIVERT_MTU_MAX];
-	int bufferSize = WINDIVERT_MTU_MAX;
-	memset(buffer, 0, bufferSize);
-	int recvLen = NULL;
-	int sendLen = NULL;
-
-	while (!stopTunnel)
-	{
-		if (!tcp->recvBuffer(buffer, bufferSize, recvLen))
-		{
-			break;
-		}
-
-		if (!tcp->sendBuffer(buffer, recvLen, sendLen))
-		{
-		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(64));
-	}
-
-	delete[] buffer;
-	switchState = TUNNEL_DESTORY;
-	tunnelState = TUNNEL_DESTORY;
-}
-
 void ClientTunnel::UDPLoop()
 {
 	std::unique_ptr<char[]> buffer(new char[WINDIVERT_MTU_MAX]);
 	int bufferSize = WINDIVERT_MTU_MAX;
-	memset(buffer.get(), 0, bufferSize);
 	int sendLen = NULL;
 	int recvLen = NULL;
 	struct sockaddr from = *reinterpret_cast<struct sockaddr*>(udp->getSocketAddr());

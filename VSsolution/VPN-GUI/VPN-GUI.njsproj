@@ -62,6 +62,10 @@
       <SubType>Code</SubType>
     </Content>
     <Content Include="README.md" />
+    <Content Include="side\serverConnection.js" />
+    <Content Include="side\clientConnection.js">
+      <SubType>Code</SubType>
+    </Content>
     <Content Include="windows.js">
       <SubType>Code</SubType>
     </Content>
@@ -70,6 +74,7 @@
     <Folder Include="assets\" />
     <Folder Include="assets\script\" />
     <Folder Include="assets\style\" />
+    <Folder Include="side\" />
     <Folder Include="pages\" />
   </ItemGroup>
   <Import Project="$(VSToolsPath)\Node.js Tools\Microsoft.NodejsToolsV2.targets" />

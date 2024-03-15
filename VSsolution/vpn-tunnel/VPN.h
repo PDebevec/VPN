@@ -3,6 +3,7 @@
 #include <regex>
 #include "clientTunnel.h"
 #include "serverTunnel.h"
+#include "communication.h"
 
 class VPN
 {
@@ -29,6 +30,7 @@ private:
 
 	std::thread* tunnelT;
 	Tunnel* vpnTunnel;
+	StandardIO coms;
 };
 
 VPN::VPN(int argc, char* argv[])
@@ -87,25 +89,38 @@ inline void VPN::communicationLoop()
 	comsState = VPN_ERROR;
 }
 
-inline void VPN::pipeLoop()
+void VPN::pipeLoop()
 {
+	char* buffer = new char[5000];
+	size_t bufferSize = 5000;
+
 	while (comsLoop)
 	{
-		if (*vpnTunnel->getTunnelState() == TUNNEL_DESTORY || *vpnTunnel->getTunnelState() == TUNNEL_STOP)
+		coms.waitToRecv(buffer, bufferSize);
+
+		if (!coms.recvIO(buffer, bufferSize))
 		{
 			comsLoop = false;
 			comsState = VPN_DESTORY;
-			break;
 		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(64));
+
+		if (std::strcmp(buffer, "ack") == 0)
+		{
+			coms.sendIO("ack");
+		}
+		else {
+			std::cout << buffer << std::endl;
+		}
 	}
 }
 
 inline void VPN::stopVPN()
 {
+	printf("stoping VPN\n");
 	comsState = VPN_STOP;
 	comsLoop = false;
 	vpnLoop = false;
+	vpnTunnel->stopLoop();
 	if (tunnelT->joinable())
 	{
 		tunnelT->join();
