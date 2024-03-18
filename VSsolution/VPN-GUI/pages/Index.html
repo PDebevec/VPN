@@ -3,12 +3,16 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="utf-8" />
+    <meta http-equiv="content-security-policy" content="script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"/>
     <title>Index</title>
+    <link href="../assets/style/css.css" rel="stylesheet" />
+    <script src="../assets/script/handleIframe.js" defer></script>
+    <script src="../assets/script/js.js" defer></script>
 </head>
 <body>
     <table>
         <tr>
-            <th id="info" onclick="handleClick(this)">VPN GUI</th>
+            <th onclick="changeIframe(this, 'GUI-info')">VPN GUI</th>
             <td rowspan="2">
                 <iframe id="content" src="./info.html"></iframe>
             </td>
@@ -18,15 +22,15 @@
                 <div>
                     <h3>Server</h3>
                     <ul>
-                        <li id="startServer" onclick="handleClick(this)">Start Server</li>
-                        <li id="serverSettings" onclick="handleClick(this)">Settings</li>
+                        <li onclick="changeIframe(this, 'server-setup')">Setup Server</li>
+                        <li onclick="changeIframe(this, 'server-status')">Server status</li>
                     </ul>
                 </div>
                 <div>
                     <h3>Client</h3>
                     <ul>
-                        <li id="startClient" onclick="handleClick(this)">Start Client</li>
-                        <li id="clientSettings" onclick="handleClick(this)">Settings</li>
+                        <li onclick="changeIframe(this, 'client-setup')">Setup Client</li>
+                        <li onclick="changeIframe(this, 'client-status')">Cleint status</li>
                     </ul>
                 </div>
             </td>

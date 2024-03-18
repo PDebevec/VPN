@@ -30,42 +30,38 @@
   <ItemGroup>
     <Content Include="app.js" />
     <Content Include="assets\logo.png" />
+    <Content Include="assets\script\handleIframe.js">
+      <SubType>Code</SubType>
+    </Content>
     <Content Include="assets\script\js.js">
       <SubType>Code</SubType>
     </Content>
     <Content Include="assets\style\css.css">
       <SubType>Code</SubType>
     </Content>
+    <Content Include="assets\style\handleIframe.css">
+      <SubType>Code</SubType>
+    </Content>
     <Content Include="connection.js">
       <SubType>Code</SubType>
     </Content>
     <Content Include="package.json" />
-    <Content Include="pages\client.html">
-      <SubType>Code</SubType>
-    </Content>
     <Content Include="pages\Index.html">
       <SubType>Code</SubType>
     </Content>
     <Content Include="pages\info.html">
       <SubType>Code</SubType>
     </Content>
-    <Content Include="pages\server.html">
+    <Content Include="pages\setup.html">
       <SubType>Code</SubType>
     </Content>
-    <Content Include="pages\startClient.html">
-      <SubType>Code</SubType>
-    </Content>
-    <Content Include="pages\startServer.html">
+    <Content Include="pages\status.html">
       <SubType>Code</SubType>
     </Content>
     <Content Include="preload.js">
       <SubType>Code</SubType>
     </Content>
     <Content Include="README.md" />
-    <Content Include="side\serverConnection.js" />
-    <Content Include="side\clientConnection.js">
-      <SubType>Code</SubType>
-    </Content>
     <Content Include="windows.js">
       <SubType>Code</SubType>
     </Content>
@@ -74,7 +70,6 @@
     <Folder Include="assets\" />
     <Folder Include="assets\script\" />
     <Folder Include="assets\style\" />
-    <Folder Include="side\" />
     <Folder Include="pages\" />
   </ItemGroup>
   <Import Project="$(VSToolsPath)\Node.js Tools\Microsoft.NodejsToolsV2.targets" />
