@@ -30,13 +30,14 @@ private:
 
 	std::thread* tunnelT;
 	Tunnel* vpnTunnel;
-	StandardIO coms;
+	IPCPiep* coms;
 };
 
 VPN::VPN(int argc, char* argv[])
 {
 	tunnelT = nullptr;
 	vpnTunnel = nullptr;
+	coms = new IPCPiep();
 
 	if (argc == 5 && isValidIP(argv[2]) && isValidIP(argv[4]) && isValidPort(argv[3]))
 	{
@@ -91,26 +92,21 @@ inline void VPN::communicationLoop()
 
 void VPN::pipeLoop()
 {
+	printf("pipe\n");
 	char* buffer = new char[5000];
 	size_t bufferSize = 5000;
+	DWORD readLen = NULL;
+	DWORD writeLen = NULL;
 
 	while (comsLoop)
 	{
-		coms.waitToRecv(buffer, bufferSize);
-
-		if (!coms.recvIO(buffer, bufferSize))
+		if (!coms->pipeRead(buffer, bufferSize, &readLen))
 		{
 			comsLoop = false;
 			comsState = VPN_DESTORY;
 		}
 
-		if (std::strcmp(buffer, "ack") == 0)
-		{
-			coms.sendIO("ack");
-		}
-		else {
-			std::cout << buffer << std::endl;
-		}
+
 	}
 }
 
@@ -141,6 +137,7 @@ inline bool VPN::isValidPort(const char* portStr) {
 
 VPN::~VPN()
 {
+	delete coms;
 	delete tunnelT;
 	delete vpnTunnel;
 }

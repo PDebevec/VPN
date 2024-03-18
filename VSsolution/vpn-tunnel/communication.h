@@ -1,57 +1,60 @@
 #pragma once
 
 #include <iostream>
+#include <windows.h>
 
-class StandardIO
+class IPCPiep
 {
 public:
-	StandardIO();
+	IPCPiep();
 
-    void changeWaitTime(int);
+    bool pipeRead(LPVOID buffer, DWORD bufferSize, LPDWORD readLen);
+    bool pipeWrite(LPCVOID buffer, DWORD bufferLen, LPDWORD writeLen);
 
-    void waitToRecv(char*, size_t);
-	bool recvIO(char*, size_t);
-	void sendIO(const char*);
-
-	~StandardIO();
+	~IPCPiep();
 
 private:
-    int timeToWait;
-    HANDLE standardInput;
+    HANDLE pipe;
 };
 
-StandardIO::StandardIO()
+IPCPiep::IPCPiep()
 {
-    standardInput = GetStdHandle(STD_INPUT_HANDLE);
-    timeToWait = 10000;
-}
+    printf("pipe init\n");
+    pipe = CreateFile(
+        L"\\\\.\\pipe\\VPNpipe",
+        GENERIC_READ | GENERIC_WRITE,
+        0, NULL,
+        OPEN_EXISTING,
+        0, NULL
+    );
 
-void StandardIO::waitToRecv(char* buffer, size_t bufferSize)
-{
-    std::cin.getline(buffer, bufferSize);
-}
-
-bool StandardIO::recvIO(char* buffer, size_t bufferSize)
-{
-    if (WaitForSingleObject(standardInput, timeToWait) == WAIT_OBJECT_0) {
-        std::cin.getline(buffer, bufferSize);
-        return true;
+    if (pipe == INVALID_HANDLE_VALUE)
+    {
+        throw "Error connecting to pipe!";
     }
-    else {
+}
+
+bool IPCPiep::pipeRead(LPVOID buffer, DWORD bufferSize, LPDWORD readLen)
+{
+    if (ReadFile(pipe, buffer, bufferSize, readLen, NULL) == FALSE)
+    {
+        std::cout << "Error reading from pipe!" << std::endl;
         return false;
     }
+    return true;
 }
 
-inline void StandardIO::sendIO(const char* buffer)
+bool IPCPiep::pipeWrite(LPCVOID buffer, DWORD bufferLen, LPDWORD writeLen)
 {
-    std::cout << buffer << std::endl;
+    if (WriteFile(pipe, buffer, bufferLen, writeLen, NULL) == FALSE)
+    {
+        std::cout << "error writing to pipe!" << std::endl;
+        return false;
+    }
+    return true;
 }
 
-inline void StandardIO::changeWaitTime(int seconds)
+IPCPiep::~IPCPiep()
 {
-    timeToWait = seconds * 1000;
-}
-
-StandardIO::~StandardIO()
-{
+    CloseHandle(pipe);
 }

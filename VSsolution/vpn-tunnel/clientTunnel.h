@@ -74,6 +74,7 @@ void ClientTunnel::destroyTunnel()
 
 void ClientTunnel::WDLoop()
 {
+	printf("WD loop\n");
 	std::unique_ptr<UINT8[]> packet(new UINT8[WINDIVERT_MTU_MAX]);
 	UINT packetSize = WINDIVERT_MTU_MAX;
 	UINT recvLen = NULL;
@@ -136,6 +137,7 @@ void ClientTunnel::WDLoop()
 
 void ClientTunnel::UDPLoop()
 {
+	printf("UDP loop\n");
 	std::unique_ptr<char[]> buffer(new char[WINDIVERT_MTU_MAX]);
 	int bufferSize = WINDIVERT_MTU_MAX;
 	int sendLen = NULL;
