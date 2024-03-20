@@ -35,15 +35,16 @@ private:
 
 VPN::VPN(int argc, char* argv[])
 {
+	vpnLoop = false;
 	tunnelT = nullptr;
 	vpnTunnel = nullptr;
 	coms = new IPCPiep();
-
+	
 	if (argc == 5 && isValidIP(argv[2]) && isValidIP(argv[4]) && isValidPort(argv[3]))
 	{
 		vpnLoop = true;
 	}
-	else vpnLoop = false;
+	else throw "Invalid arguments!";
 	
 	comsState = VPN_INIT;
 }
@@ -93,8 +94,8 @@ inline void VPN::communicationLoop()
 void VPN::pipeLoop()
 {
 	printf("pipe\n");
-	char* buffer = new char[5000];
-	size_t bufferSize = 5000;
+	char* buffer = new char[4096];
+	DWORD bufferSize = 4096;
 	DWORD readLen = NULL;
 	DWORD writeLen = NULL;
 
@@ -105,8 +106,6 @@ void VPN::pipeLoop()
 			comsLoop = false;
 			comsState = VPN_DESTORY;
 		}
-
-
 	}
 }
 
