@@ -3,18 +3,62 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>setup</title>
+    <link href="../assets/style/handleIframe.css" rel="stylesheet" />
+    <link href="../node_modules/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <script src="../node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 </head>
 <body>
-    <input type="file" id="key" />
-    <input type="file" id="cert" />
-
-    <input type="file" id="encryption" />
-
-    <input type="text" id="primary" />
-    <input type="number" id="port" min="1" max="65535" />
-    <input type="text" id="secondary" />
-
-    <button id="confirm">Confirm</button>
+    <div class="container mt-2">
+        <div class="row mb-2" id="server-key">
+            <label for="key" class="col-sm-3 col-form-label">Key</label>
+            <div class="col-sm-7 input-group">
+                <input type="file" class="form-control" id="key" tabindex="1">
+                <button type="button" class="btn btn-outline-secondary">?</button>
+            </div>
+        </div>
+        <div class="row mb-2" id="server-cert">
+            <label for="cert" class="col-sm-3 col-form-label">Certificate</label>
+            <div class="col-sm-7 input-group">
+                <input type="file" class="form-control" id="cert" tabindex="2">
+                <button type="button" class="btn btn-outline-secondary">?</button>
+            </div>
+        </div>
+        <div class="row mb-2" id="client-key">
+            <label for="encryption" class="col-sm-3 col-form-label">Encryption Key</label>
+            <div class="col-sm-7 input-group">
+                <input type="file" class="form-control" id="encryption" tabindex="3">
+                <button type="button" class="btn btn-outline-secondary">?</button>
+            </div>
+        </div>
+        <div class="row mb-2">
+            <label for="primary" class="col-sm-3 col-form-label">Primary IP</label>
+            <div class="col-sm-7 input-group">
+                <input type="text" class="form-control" id="primary" tabindex="4">
+                <button type="button" class="btn btn-outline-secondary">?</button>
+            </div>
+        </div>
+        <div class="row mb-2">
+            <label for="port" class="col-sm-3 col-form-label">Server Port</label>
+            <div class="col-sm-7 input-group">
+                <input type="number" class="form-control" id="port" min="1" max="65535" tabindex="5">
+                <button type="button" class="btn btn-outline-secondary">?</button>
+            </div>
+        </div>
+        <div class="row mb-3">
+            <label for="secondary" class="col-sm-3 col-form-label">Secondary IP</label>
+            <div class="col-sm-7 input-group">
+                <input type="text" class="form-control" id="secondary" tabindex="6">
+                <button type="button" class="btn btn-outline-secondary">?</button>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-sm-10">
+                <button type="button" class="btn btn-primary" id="confirm" tabindex="7">Confirm</button>
+                <button type="button" class="btn btn-primary" id="clear" tabindex="8">Clear</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

@@ -1,7 +1,7 @@
 import { Tray, Menu, BrowserWindow } from 'electron'
 import { join } from 'path'
 
-let mainWindow
+export let mainWindow
 let tray
 
 export const createMainWindow = (app) => {
