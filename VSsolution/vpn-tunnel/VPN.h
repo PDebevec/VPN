@@ -18,6 +18,8 @@ public:
 private:
 	void pipeLoop();
 
+	void handleComms(char*);
+
 	bool isValidIP(const char* ipStr);
 	bool isValidPort(const char* portStr);
 
@@ -46,6 +48,7 @@ VPN::VPN(int argc, char* argv[])
 	}
 	else throw "Invalid arguments!";
 	
+	comsLoop = true;
 	comsState = VPN_INIT;
 }
 
@@ -78,7 +81,7 @@ inline void VPN::communicationLoop()
 	{
 		switch (comsState)
 		{
-		case VPN_STARED:
+		case VPN_INIT:
 			pipeLoop();
 			break;
 		case VPN_DESTORY:
@@ -91,11 +94,15 @@ inline void VPN::communicationLoop()
 	comsState = VPN_ERROR;
 }
 
+void VPN::handleComms(char* buffer)
+{
+	std::cout << buffer << std::endl;
+}
+
 void VPN::pipeLoop()
 {
-	printf("pipe\n");
-	char* buffer = new char[4096];
-	DWORD bufferSize = 4096;
+	char* buffer = new char[128];
+	DWORD bufferSize = 128;
 	DWORD readLen = NULL;
 	DWORD writeLen = NULL;
 
@@ -106,6 +113,8 @@ void VPN::pipeLoop()
 			comsLoop = false;
 			comsState = VPN_DESTORY;
 		}
+
+		handleComms(buffer);
 	}
 }
 

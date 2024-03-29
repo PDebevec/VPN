@@ -43,7 +43,7 @@ constexpr byte TUNNEL_DESTORY		= 0x58;
 constexpr byte TUNNEL_ERROR			= 0x59;
 
 /// <summary>
-/// Tunnel class codes
+/// VPN class codes
 /// </summary>
 constexpr byte VPN_STOP		= 0x60;
 constexpr byte VPN_INIT		= 0x61;
