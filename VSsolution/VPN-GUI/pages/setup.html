@@ -10,45 +10,46 @@
     <script src="../node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 </head>
 <body>
-    <div class="container mt-2">
+    <div class="container-fluid mt-4">
         <div class="row mb-2" id="server-key">
             <label for="key" class="col-sm-3 col-form-label">Key</label>
-            <div class="col-sm-7 input-group">
+            <div class="col-sm-9 input-group">
                 <input type="file" class="form-control" id="key" tabindex="1">
                 <button type="button" class="btn btn-outline-secondary">?</button>
             </div>
         </div>
         <div class="row mb-2" id="server-cert">
             <label for="cert" class="col-sm-3 col-form-label">Certificate</label>
-            <div class="col-sm-7 input-group">
+            <div class="col-sm-9 input-group">
                 <input type="file" class="form-control" id="cert" tabindex="2">
                 <button type="button" class="btn btn-outline-secondary">?</button>
             </div>
+            <a href="#" id="create-keycert">Create key and certificate</a>
         </div>
         <div class="row mb-2" id="client-key">
-            <label for="encryption" class="col-sm-3 col-form-label">Encryption Key</label>
-            <div class="col-sm-7 input-group">
+            <label for="encryption" class="col-sm-3 col-form-label">Public Encryption Key</label>
+            <div class="col-sm-9 input-group">
                 <input type="file" class="form-control" id="encryption" tabindex="3">
                 <button type="button" class="btn btn-outline-secondary">?</button>
             </div>
         </div>
         <div class="row mb-2">
-            <label for="primary" class="col-sm-3 col-form-label">Primary IP</label>
-            <div class="col-sm-7 input-group">
+            <label for="primary" class="col-sm-3 col-form-label">Server IP</label>
+            <div class="col-sm-9 input-group">
                 <input type="text" class="form-control" id="primary" tabindex="4">
                 <button type="button" class="btn btn-outline-secondary">?</button>
             </div>
         </div>
         <div class="row mb-2">
             <label for="port" class="col-sm-3 col-form-label">Server Port</label>
-            <div class="col-sm-7 input-group">
+            <div class="col-sm-9 input-group">
                 <input type="number" class="form-control" id="port" min="1" max="65535" tabindex="5">
                 <button type="button" class="btn btn-outline-secondary">?</button>
             </div>
         </div>
         <div class="row mb-3">
             <label for="secondary" class="col-sm-3 col-form-label">Secondary IP</label>
-            <div class="col-sm-7 input-group">
+            <div class="col-sm-9 input-group">
                 <input type="text" class="form-control" id="secondary" tabindex="6">
                 <button type="button" class="btn btn-outline-secondary">?</button>
             </div>

@@ -3,37 +3,50 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="utf-8" />
-    <meta http-equiv="content-security-policy" content="script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"/>
+    <meta http-equiv="content-security-policy" content="script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" />
     <title>Index</title>
     <link href="../assets/style/css.css" rel="stylesheet" />
     <script src="../assets/script/handleIframe.js" defer></script>
     <script src="../assets/script/js.js" defer></script>
+    <link href="../node_modules/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <script src="../node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 </head>
 <body>
     <table>
         <tr>
-            <th onclick="changeIframe(this, 'GUI-info')">VPN GUI</th>
-            <td rowspan="2">
-                <iframe id="content" src="./info.html"></iframe>
-            </td>
-        </tr>
-        <tr>
-            <td>
-                <div>
-                    <h3>Server</h3>
-                    <ul>
-                        <li onclick="changeIframe(this, 'server-setup')">Setup Server</li>
-                        <li onclick="changeIframe(this, 'server-status')">Server status</li>
+            <td style="width:20%;">
+                <div class="p-3 bg-white">
+                    <a href="#" class="d-flex align-items-center pb-3 mb-3 link-dark text-decoration-none border-bottom">
+                        <span class="fs-5 fw-semibold" onclick="changeIframe(this, 'VPN-info')">VPN GUI</span>
+                    </a>
+                    <ul class="list-unstyled ps-0">
+                        <li class="mb-1">
+                            <button class="btn btn-toggle align-items-center rounded collapsed" id="server-collapse-btn" data-bs-toggle="collapse" data-bs-target="#server-collapse" aria-expanded="true">
+                                Server
+                            </button>
+                            <div class="collapse show" id="server-collapse">
+                                <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+                                    <li onclick="changeIframe(this, 'server-setup')">Setup Server</li>
+                                    <li onclick="changeIframe(this, 'server-status')">Server Status</li>
+                                </ul>
+                            </div>
+                        </li>
+                        <li class="mb-1">
+                            <button class="btn btn-toggle align-items-center rounded collapsed" id="client-collapse-btn" data-bs-toggle="collapse" data-bs-target="#client-collapse" aria-expanded="true">
+                                Client
+                            </button>
+                            <div class="collapse show" id="client-collapse">
+                                <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+                                    <li onclick="changeIframe(this, 'client-setup')">Setup Client</li>
+                                    <li onclick="changeIframe(this, 'client-status')">Client Status</li>
+                                </ul>
+                            </div>
+                        </li>
+                        <li class="border-top my-3"></li>
                     </ul>
                 </div>
-                <div>
-                    <h3>Client</h3>
-                    <ul>
-                        <li onclick="changeIframe(this, 'client-setup')">Setup Client</li>
-                        <li onclick="changeIframe(this, 'client-status')">Cleint status</li>
-                    </ul>
-                </div>
             </td>
+            <td><iframe id="content" src="./info.html"></iframe></td>
         </tr>
     </table>
 </body>

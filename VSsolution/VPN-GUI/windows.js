@@ -12,6 +12,7 @@ export const createMainWindow = (app) => {
         webPreferences: {
             preload: join(app.getAppPath(), "/preload.js")
         },
+        resizable: false
     })
 
     mainWindow.loadFile('./pages/index.html')

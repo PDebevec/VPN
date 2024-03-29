@@ -10,8 +10,7 @@ let tunnelState = undefined;
 let httpsState = undefined;
 let setupSettings = {}
 
-window.electronAPI.recvData('server', handleResponse)
-window.electronAPI.recvData('client', handleResponse)
+window.electronAPI.recvData(handleResponse)
 
 iframe.addEventListener('load', () => {
     side = iframe.name
@@ -23,14 +22,14 @@ iframe.addEventListener('load', () => {
             .addEventListener('click', confirmBtn);
         iframe.contentDocument.getElementById('clear')
             .addEventListener('click', clearBtn);
+        iframe.contentDocument.getElementById('create-keycert').
+            addEventListener('click', createKeyCert)
     }
     else if (iframe.contentDocument.title == 'status')
     {
         checkLocalStorage()
-        iframe.contentDocument.getElementById('https')
-            .addEventListener('click', handleHttpsBtn);
-        iframe.contentDocument.getElementById('tunnel')
-            .addEventListener('click', handleTunnelBtn);
+        iframe.contentDocument.getElementById('start-stop')
+            .addEventListener('click', toggleVPN);
     } else {
         return
     }
@@ -38,49 +37,24 @@ iframe.addEventListener('load', () => {
 
 function handleResponse(event, msg) {
     console.log(msg)
-    switch (msg.response) {
-        case 'tunnel-status':
-            tunnelState = msg.tunnel
-            httpsState = msg.https
-            break
-        default:
+    if (msg.response == 'vpn-status') {
+        httpsState = msg.https
+        tunnelState = msg.tunnel
     }
 }
-function handleTunnelBtn() {
+function toggleVPN() {
     let data = {
-        action: 'toggle-tunnel'
-    }
-
-    if (!tunnelState) {
-        const parsed = JSON.parse(localStorage.getItem(side))
-        data.args = [
-            `-${side[0]}`, parsed.primary, Number(parsed.port), parsed.secondary
-        ]
-    }
-
-    window.electronAPI.sendData(side, data)
-}
-function handleHttpsBtn() {
-    let data = {
-        action: 'toggle-https'
+        action: 'toggle-vpn',
+        side
     }
 
     const parsed = JSON.parse(localStorage.getItem(side))
-    if (!httpsState && side == 'server') {
-        data.cert = parsed.cert
-        data.key = parsed.key
-        data.addr = parsed.primary
-        data.port = Number(parsed.port)
-    } else if(side == 'client') {
-        data.toggle = !httpsState ? 'start' : 'stop'
-        data.options = {
-            hostname: parsed.primary,
-            port: parsed.port,
-            path: '/'
-        }
-    }
+    data.side = side;
+    parsed.port = Number(parsed.port)
+    data.parsed = parsed
+    data.parsed.path = side == 'client' ? '/connect' : undefined
 
-    window.electronAPI.sendData(side, data)
+    window.electronAPI.sendData(data)
 }
 function asignInputValues() {
     if (side == 'client') {
@@ -135,23 +109,23 @@ function clearBtn() {
         iframe.contentDocument.getElementById(id).value = ''
     })
 }
+function createKeyCert() {
+    window.electronAPI.sendData({
+        action: 'create-cert'
+    })
+}
 function checkLocalStorage() {
+    iframe.contentDocument.getElementById('error-card').classList.add('d-none')
     if (localStorage.getItem(side) == null) {
         iframe.contentDocument.getElementById('info-card').classList.add('border-warning', 'text-danger')
         iframe.contentDocument.getElementById('status-text').innerHTML = `Set up the ${side} before stating the VPN!`
-        //iframe.contentDocument.getElementById('https-card').classList.add('border-light', 'text-light')
-        //iframe.contentDocument.getElementById('tunnel-card').classList.add('border-light', 'text-light')
-        //iframe.contentDocument.getElementById('https').classList.add('disabled', 'btn-light')
-        //iframe.contentDocument.getElementById('tunnel').classList.add('disabled', 'btn-light')
     } else {
-        //iframe.contentDocument.getElementById('https').classList.add('btn-success')
-        //iframe.contentDocument.getElementById('tunnel').classList.add('btn-success')
         if (tunnelState) {
 
         } else {
             iframe.contentDocument.getElementById('info-card').classList.add('d-none')
-            window.electronAPI.sendData(side, {
-                action: 'get-tunnel-status'
+            window.electronAPI.sendData({
+                action: 'get-vpn-status'
             })
         }
     }

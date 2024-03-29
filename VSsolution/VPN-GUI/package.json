@@ -5,15 +5,25 @@
   "description": "VPN-GUI",
   "main": "app.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
   },
   "author": {
     "name": ""
   },
   "devDependencies": {
-    "electron": "^29.1.1"
+    "@electron-forge/cli": "^7.3.1",
+    "@electron-forge/maker-squirrel": "^7.3.1",
+    "@electron-forge/maker-zip": "^7.3.1",
+    "axios": "^1.6.8",
+    "electron": "^29.1.1",
+    "express": "^4.19.2"
   },
   "dependencies": {
-    "bootstrap": "^5.3.3"
+    "bootstrap": "^5.3.3",
+    "axios": "^1.6.8",
+    "electron": "^29.1.1",
+    "express": "^4.19.2"
   }
 }

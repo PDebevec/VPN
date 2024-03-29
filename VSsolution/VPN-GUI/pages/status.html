@@ -10,34 +10,38 @@
     <script src="../node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 </head>
 <body>
-    <div class="container mt-2">
-        <div class="row mb-2">
-            <div class="col-sm-1"></div>
-            <div class="col-sm-10">
-                <div class="card" id="info-card">
+    <div class="container-fluid mt-4">
+        <div class="row mb-4">
+            <div class="col-md-8 offset-md-2">
+                <div class="card text-center" id="info-card">
                     <div class="card-body">
-                        <p id="status-text" class="crad-text mb-0"></p>
+                        <h6 id="status-text" class="card-text mb-0"></h6>
                     </div>
                 </div>
             </div>
-            <div class="col-sm-1"></div>
         </div>
         <div class="row">
-            <div class="col-sm-6">
-                <div class="card" id="https-card">
+            <div class="col-md-12">
+                <div class="card">
                     <div class="card-body">
-                        <h4 class="card-title">Special title treatment</h4>
-                        <p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
-                        <a id="https" class="btn">Start HTTPS</a>
+                        <button id="start-stop" class="btn btn-primary">Toggle VPN</button>
                     </div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">
+                            HTTPS <span class="badge bg-danger">OFF</span>
+                        </li>
+                        <li class="list-group-item">
+                            TUNNEL <span class="badge bg-danger">OFF</span>
+                        </li>
+                    </ul>
                 </div>
             </div>
-            <div class="col-sm-6">
-                <div class="card" id="tunnel-card">
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card text-center" id="error-card">
                     <div class="card-body">
-                        <h4 class="card-title">Special title treatment</h4>
-                        <p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
-                        <a id="tunnel" class="btn">Start Tunnel</a>
+                        <h6 id="error-message"></h6>
                     </div>
                 </div>
             </div>

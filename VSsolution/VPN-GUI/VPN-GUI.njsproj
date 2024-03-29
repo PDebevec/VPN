@@ -28,6 +28,7 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include=".gitignore" />
     <Content Include="app.js" />
     <Content Include="assets\logo.png" />
     <Content Include="assets\script\handleIframe.js">
@@ -43,6 +44,9 @@
       <SubType>Code</SubType>
     </Content>
     <Content Include="connection.js">
+      <SubType>Code</SubType>
+    </Content>
+    <Content Include="forge.config.js">
       <SubType>Code</SubType>
     </Content>
     <Content Include="package.json" />
@@ -62,6 +66,7 @@
       <SubType>Code</SubType>
     </Content>
     <Content Include="README.md" />
+    <Content Include="VPN-GUI.nuspec" />
     <Content Include="windows.js">
       <SubType>Code</SubType>
     </Content>
