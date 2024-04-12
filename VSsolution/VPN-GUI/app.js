@@ -1,8 +1,11 @@
 'use strict';
 
-import { createTray, createMainWindow, mainWindow} from './windows.js'
-import { createSSLCertificate, emitter, getStatus } from './connection.js'
+import { createTray, createMainWindow, mainWindow} from './module/windows.js'
+import { createSSLCertificate, generateRSAkeyPair } from './module/joinedModules.js'
+import emitter from './module/emitter.js'
 import { app, ipcMain } from 'electron';
+
+let vpnModule = null
 
 app.on('ready', () => {
     createMainWindow(app);
@@ -10,31 +13,63 @@ app.on('ready', () => {
     createTray(app);
 });
 
-ipcMain.on('frontend-comms', (event, data) => {
+ipcMain.on('app-comms', async (event, data) => {
     console.log(data)
     switch (data.action) {
         case 'get-vpn-status':
-            mainWindow.webContents.send('frontend-comms', getStatus())
+            if (vpnModule) {
+                mainWindow.webContents.send('app-comms', vpnModule.getStatus())
+            } else {
+                mainWindow.webContents.send('app-comms', {
+                    response: 'vpn-status',
+                    https: false,
+                    pipe: false,
+                    tunnel: false,
+                })
+            }
+            break
+        case 'close-module':
+            vpnModule = null
             break
         case 'toggle-vpn':
-            emitter.emit('internal', {
-                action: 'start-vpn-'+data.side,
-                data: data.parsed
-            })
+            if (vpnModule) {
+                emitter.emit(data.side + '-comms', { action: 'close-tunnel', data: data.parsed })
+                break
+            }
+            try {
+                const mod = await import(`./module/${data.side}Side.js`);
+                vpnModule = mod;
+
+                emitter.emit(data.side + '-comms', {
+                    action: 'start-tunnel',
+                    data: data.parsed
+                });
+            } catch (err) {
+                mainWindow.webContents.send('app-comms', { response: 'import-error', err: err.message });
+            }
+            break
+        case 'stop-vpn':
+            if (vpnModule) {
+                vpnModule.closeTunnel()
+            }
             break
         case 'create-cert':
-            createSSLCertificate((err) => {
-                mainWindow.webContents.send('frontend-comms', {
-                    response: 'creating-cert-response',
-                    err: err.message | undefined
-                })
-            })
+            createSSLCertificate()
+                .then(() => mainWindow.webContents.send('app-comms', {response: 'SSL-cert-created'}))
+                .catch(err => mainWindow.webContents.send('app-comms', {response: 'SSL-create-error', err}))
+            break
+        case 'generate-keypair':
+            generateRSAkeyPair()
+                .then(() => mainWindow.webContents.send('app-comms', {response: 'key-pair-generated'}))
+                .catch(err => mainWindow.webContents.send('app-comms', {response: 'Error-generating-keys', err}))
             break
         default:
     }
 })
 
-emitter.on('message', (data) => mainWindow.webContents.send('frontend-comms', data))
+emitter.on('message', (data) => mainWindow.webContents.send('app-comms', data))
+
+emitter.on('close-module', () => { vpnModule = null })
 
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {

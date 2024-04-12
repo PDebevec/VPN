@@ -10,7 +10,7 @@
     "make": "electron-forge make"
   },
   "author": {
-    "name": ""
+    "name": "Peter Debevec"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.3.1",

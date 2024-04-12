@@ -11,25 +11,26 @@
 </head>
 <body>
     <div class="container-fluid mt-4">
-        <div class="row mb-2" id="server-key">
-            <label for="key" class="col-sm-3 col-form-label">Key</label>
-            <div class="col-sm-9 input-group">
-                <input type="file" class="form-control" id="key" tabindex="1">
-                <button type="button" class="btn btn-outline-secondary">?</button>
-            </div>
-        </div>
         <div class="row mb-2" id="server-cert">
-            <label for="cert" class="col-sm-3 col-form-label">Certificate</label>
+            <label for="cert" class="col-sm-3 col-form-label">Server Certificate</label>
             <div class="col-sm-9 input-group">
                 <input type="file" class="form-control" id="cert" tabindex="2">
                 <button type="button" class="btn btn-outline-secondary">?</button>
             </div>
-            <a href="#" id="create-keycert">Create key and certificate</a>
+        </div>
+        <div class="row mb-2" id="server-key">
+            <label for="key" class="col-sm-3 col-form-label">Server Key</label>
+            <div class="col-sm-9 input-group">
+                <input type="file" class="form-control" id="key" tabindex="1">
+                <button type="button" class="btn btn-outline-secondary">?</button>
+            </div>
+            <a href="#" id="create-keycert">Create SSL certificate.</a>
+            <a href="#" id="create-keypair">Create RSA key pair.</a>
         </div>
         <div class="row mb-2" id="client-key">
-            <label for="encryption" class="col-sm-3 col-form-label">Public Encryption Key</label>
+            <label for="encryption" class="col-sm-3 col-form-label">Public Key</label>
             <div class="col-sm-9 input-group">
-                <input type="file" class="form-control" id="encryption" tabindex="3">
+                <input type="file" class="form-control" id="public" tabindex="3">
                 <button type="button" class="btn btn-outline-secondary">?</button>
             </div>
         </div>

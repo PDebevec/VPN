@@ -22,8 +22,10 @@ iframe.addEventListener('load', () => {
             .addEventListener('click', confirmBtn);
         iframe.contentDocument.getElementById('clear')
             .addEventListener('click', clearBtn);
-        iframe.contentDocument.getElementById('create-keycert').
-            addEventListener('click', createKeyCert)
+        iframe.contentDocument.getElementById('create-keycert')
+            .addEventListener('click', () => window.electronAPI.sendData({ action: 'create-cert' }))
+        iframe.contentDocument.getElementById('create-keypair')
+            .addEventListener('click', () => window.electronAPI.sendData({ action: 'generate-keypair' }))
     }
     else if (iframe.contentDocument.title == 'status')
     {
@@ -52,15 +54,14 @@ function toggleVPN() {
     data.side = side;
     parsed.port = Number(parsed.port)
     data.parsed = parsed
-    data.parsed.path = side == 'client' ? '/connect' : undefined
 
     window.electronAPI.sendData(data)
 }
 function asignInputValues() {
     if (side == 'client') {
-        iframe.contentDocument.getElementById('server-key').classList.add('d-none')
         iframe.contentDocument.getElementById('server-cert').classList.add('d-none')
-    } else {
+        iframe.contentDocument.getElementById('server-key').classList.add('d-none')
+    } else if (side == 'server') {
         iframe.contentDocument.getElementById('client-key').classList.add('d-none')
     }
     if (localStorage.getItem(side) != null) {
@@ -73,11 +74,13 @@ function asignInputValues() {
 }
 function confirmBtn(event) {
     let ids = []
+
     if (side == 'client') {
-        ids = ['encryption', 'primary', 'port', 'secondary'];
+        ids = ['public', 'primary', 'port', 'secondary'];
     } else if (side == 'server') {
         ids = ['key', 'cert', 'primary', 'port', 'secondary'];
     }
+
     const contentDocument = iframe.contentDocument;
 
     ids.forEach(id => {
@@ -102,16 +105,11 @@ function confirmBtn(event) {
     console.log(setupSettings);
 }
 function clearBtn() {
-    let ids = ['key', 'cert', 'encryption', 'primary', 'port', 'secondary'];
+    let ids = ['key', 'cert', 'public', 'primary', 'port', 'secondary'];
     localStorage.removeItem(side)
     setupSettings = {}
     ids.forEach(id => {
         iframe.contentDocument.getElementById(id).value = ''
-    })
-}
-function createKeyCert() {
-    window.electronAPI.sendData({
-        action: 'create-cert'
     })
 }
 function checkLocalStorage() {

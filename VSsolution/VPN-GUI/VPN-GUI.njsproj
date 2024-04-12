@@ -43,10 +43,19 @@
     <Content Include="assets\style\handleIframe.css">
       <SubType>Code</SubType>
     </Content>
-    <Content Include="connection.js">
+    <Content Include="module\clientSide.js">
       <SubType>Code</SubType>
     </Content>
     <Content Include="forge.config.js">
+      <SubType>Code</SubType>
+    </Content>
+    <Content Include="module\emitter.js">
+      <SubType>Code</SubType>
+    </Content>
+    <Content Include="module\joinedModules.js">
+      <SubType>Code</SubType>
+    </Content>
+    <Content Include="module\serverSide.js">
       <SubType>Code</SubType>
     </Content>
     <Content Include="package.json" />
@@ -67,7 +76,7 @@
     </Content>
     <Content Include="README.md" />
     <Content Include="VPN-GUI.nuspec" />
-    <Content Include="windows.js">
+    <Content Include="module\windows.js">
       <SubType>Code</SubType>
     </Content>
   </ItemGroup>
@@ -75,6 +84,7 @@
     <Folder Include="assets\" />
     <Folder Include="assets\script\" />
     <Folder Include="assets\style\" />
+    <Folder Include="module\" />
     <Folder Include="pages\" />
   </ItemGroup>
   <Import Project="$(VSToolsPath)\Node.js Tools\Microsoft.NodejsToolsV2.targets" />
