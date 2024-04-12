@@ -1,10 +1,13 @@
 #pragma once
 
-#include "baseWinDivert.h"
+#include <openssl/evp.h>
+#include <openssl/aes.h>
+#include <openssl/rand.h>
 #include <iomanip>
 #include <cstdint>
 #include <bitset>
 #include <chrono>
+#include "baseWinDivert.h"
 
 namespace PM {
     namespace DI {
@@ -89,7 +92,80 @@ namespace PM {
     }
 
     void increaseTTL(unsigned char* packet) {
-        packet[8] += 5;
+        packet[8] += 8;
+    }
+
+    void aes_encrypt(UINT8* plaintext, int& plaintextLen, const UINT8* key, UINT8* iv, UINT8* ciphertext, int& ciphertextLen) {
+        EVP_CIPHER_CTX* ctx;
+        int len;
+
+        if (RAND_bytes(iv, AES_BLOCK_SIZE) != 1) {
+            std::cerr << "Error: RAND_bytes() failed to generate IV" << std::endl;
+            return;
+        }
+
+        if (!(ctx = EVP_CIPHER_CTX_new())) {
+            std::cerr << "Error: EVP_CIPHER_CTX_new() failed" << std::endl;
+            return;
+        }
+
+        if (1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_ctr(), NULL, key, iv)) {
+            std::cerr << "Error: EVP_EncryptInit_ex() failed" << std::endl;
+            EVP_CIPHER_CTX_free(ctx);
+            return;
+        }
+
+        if (1 != EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintextLen)) {
+            std::cerr << "Error: EVP_EncryptUpdate() failed" << std::endl;
+            EVP_CIPHER_CTX_free(ctx);
+            return;
+        }
+        ciphertextLen = len;
+
+        if (1 != EVP_EncryptFinal_ex(ctx, ciphertext + len, &len)) {
+            std::cerr << "Error: EVP_EncryptFinal_ex() failed" << std::endl;
+            EVP_CIPHER_CTX_free(ctx);
+            return;
+        }
+        ciphertextLen += len;
+
+        std::memcpy(ciphertext + ciphertextLen, iv, 16);
+
+        ciphertextLen += 16;
+
+        EVP_CIPHER_CTX_free(ctx);
+    }
+
+    void aes_decrypt(const UINT8* ciphertext, int& ciphertextLen, const UINT8* key, UINT8* plaintext, int& plaintextLen) {
+        EVP_CIPHER_CTX* ctx;
+        int len;
+
+        if (!(ctx = EVP_CIPHER_CTX_new())) {
+            std::cerr << "Error: EVP_CIPHER_CTX_new() failed" << std::endl;
+            return;
+        }
+
+        if (1 != EVP_DecryptInit_ex(ctx, EVP_aes_256_ctr(), NULL, key, ciphertext + ciphertextLen - 16)) {
+            std::cerr << "Error: EVP_DecryptInit_ex() failed" << std::endl;
+            EVP_CIPHER_CTX_free(ctx);
+            return;
+        }
+
+        if (1 != EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertextLen - 16)) {
+            std::cerr << "Error: EVP_DecryptUpdate() failed" << std::endl;
+            EVP_CIPHER_CTX_free(ctx);
+            return;
+        }
+        plaintextLen = len;
+
+        if (1 != EVP_DecryptFinal_ex(ctx, plaintext + len, &len)) {
+            std::cerr << "Error: EVP_DecryptFinal_ex() failed" << std::endl;
+            EVP_CIPHER_CTX_free(ctx);
+            return;
+        }
+        plaintextLen += len;
+
+        EVP_CIPHER_CTX_free(ctx);
     }
 
     inline bool isDstIP(unsigned char* packet, byte* ip) {
@@ -106,22 +182,6 @@ namespace PM {
             static_cast<byte>(packet[13]) == ip[1] &&
             static_cast<byte>(packet[14]) == ip[2] &&
             static_cast<byte>(packet[15]) == ip[3]);
-    }
-
-    UINT16 calculateChecksum(const UINT8* packet, size_t packetSize) {
-        UINT32 sum = 0;
-
-        for (size_t i = 0; i < packetSize; i += 2) {
-            if (i != 10) {
-                sum += (packet[i] << 8) + packet[i + 1];
-            }
-        }
-
-        while (sum >> 16) {
-            sum = (sum & 0xFFFF) + (sum >> 16);
-        }
-
-        return static_cast<UINT16>(~sum);
     }
 
     template <typename T>

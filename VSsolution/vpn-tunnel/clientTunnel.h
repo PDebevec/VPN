@@ -6,6 +6,9 @@ class ClientTunnel : public Tunnel
 {
 public:
 	ClientTunnel(char* argv[]);
+
+	void newConnection(char*, char*) override;
+
 	~ClientTunnel();
 
 private:
@@ -19,19 +22,17 @@ private:
 ClientTunnel::ClientTunnel(char* argv[])
 	:Tunnel(argv)
 {
-	if (strcmp(argv[1], "-c") == 0 || strcmp(argv[1], "--client") == 0)
-	{
-		switchState = TUNNEL_INIT;
-	}
-	else {
-		tunnelState = TUNNEL_ERROR;
-	}
 }
 
 void ClientTunnel::initTunnel()
 {
+	printf("tunnel init\n");
 	udp = new UDPSocket(arg);
-	wd = new BaseWinDivert("!loopback and !icmp", 0); //WINDIVERT_FLAG_SNIFF
+
+	std::string temp = "outbound and !loopback and !icmp and remoteAddr != ";
+	temp += arg[2];
+
+	wd = new BaseWinDivert(temp.c_str(), 0); //WINDIVERT_FLAG_SNIFF
 
 	udp->initUDPClient();
 
@@ -47,6 +48,19 @@ void ClientTunnel::initTunnel()
 
 	tunnelState = TUNNEL_INITIALIZED;
 	switchState = TUNNEL_LOOP;
+}
+
+inline void ClientTunnel::newConnection(char* secondary, char* keys)
+{
+	secAddr = PM::ipStringToArray(secondary);
+
+	encKey = new UINT8[32];
+	std::memcpy(encKey, keys, 32);
+
+	decKey = new UINT8[32];
+	std::memcpy(decKey, keys + 32, 32);
+
+	switchState = TUNNEL_INIT;
 }
 
 void ClientTunnel::destroyTunnel()
@@ -76,6 +90,7 @@ void ClientTunnel::WDLoop()
 {
 	printf("WD loop\n");
 	std::unique_ptr<UINT8[]> packet(new UINT8[WINDIVERT_MTU_MAX]);
+	std::unique_ptr<UINT8[]> decPacket(new UINT8[WINDIVERT_MTU_MAX]);
 	UINT packetSize = WINDIVERT_MTU_MAX;
 	UINT recvLen = NULL;
 	UINT sendLen = NULL;
@@ -116,14 +131,16 @@ void ClientTunnel::WDLoop()
 		{
 			packet.reset(recved.pop((int*)&recvLen));
 
-			PM::changePacketDstIP(packet.get(), secAddr);
+			PM::aes_decrypt(packet.get(), (int&)recvLen, decKey, decPacket.get(), (int&)recvLen);
 
-			PM::increaseTTL(packet.get());
+			PM::changePacketDstIP(decPacket.get(), secAddr);
 
-			if (!wd->calcualteIPChecksum(packet.get(), recvLen, &injectAddr))
+			PM::increaseTTL(decPacket.get());
+
+			if (!wd->calcualteIPChecksum(decPacket.get(), recvLen, &injectAddr))
 				continue;
 
-			if (!wd->sendPacket(packet.get(), recvLen, &sendLen, &injectAddr))
+			if (!wd->sendPacket(decPacket.get(), recvLen, &sendLen, &injectAddr))
 			{
 				printf("Error injecting recved packet\n");
 			}
@@ -139,6 +156,8 @@ void ClientTunnel::UDPLoop()
 {
 	printf("UDP loop\n");
 	std::unique_ptr<char[]> buffer(new char[WINDIVERT_MTU_MAX]);
+	std::unique_ptr<char[]> encBuffer(new char[WINDIVERT_MTU_MAX]);
+	std::unique_ptr<UINT8[]> iv(new UINT8[AES_BLOCK_SIZE]);
 	int bufferSize = WINDIVERT_MTU_MAX;
 	int sendLen = NULL;
 	int recvLen = NULL;
@@ -160,8 +179,11 @@ void ClientTunnel::UDPLoop()
 		{
 			buffer.reset(reinterpret_cast<char*>(caught.pop((int*)&recvLen)));
 
-			if (!udp->sendBufferTo(buffer.get(), recvLen, &from, fromLen, sendLen))
+			PM::aes_encrypt(reinterpret_cast<UINT8*>(buffer.get()), recvLen, encKey, iv.get(), reinterpret_cast<UINT8*>(encBuffer.get()), recvLen);
+
+			if (!udp->sendBufferTo(encBuffer.get(), recvLen, &from, fromLen, sendLen))
 			{
+				std::cerr << WSAGetLastError() << ":" << recvLen << ":" << recvLen - 16 << std::endl;
 			}
 		}
 	}

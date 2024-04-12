@@ -15,6 +15,7 @@ public:
 
 	void tunnelLoop();
 	const std::atomic<byte>* getTunnelState();
+	virtual void newConnection(char* secondary, char* keys) {};
 	void stopLoop();
 
 	~Tunnel();
@@ -30,6 +31,9 @@ protected:
 	char** arg;
 	byte* secAddr;
 	byte* servAddr;
+
+	UINT8* encKey;
+	UINT8* decKey;
 
 	UDPSocket* udp;
 	BaseWinDivert* wd;
@@ -52,22 +56,18 @@ Tunnel::Tunnel(char* argv[])
 	stopTunnel = true;
 	udp = nullptr;
 	wd = nullptr;
-
+	secAddr = nullptr;
+	encKey = nullptr;
+	decKey = nullptr;
+	
 	char* copyPtr = new char[strlen(argv[2]) + 1];
-	strcpy_s(copyPtr, strlen(argv[2])+1, argv[2]);
+	strcpy_s(copyPtr, strlen(argv[2]) + 1, argv[2]);
 	servAddr = PM::ipStringToArray(copyPtr);
 	delete[] copyPtr;
-	secAddr = PM::ipStringToArray(argv[4]);
 }
 
 void Tunnel::tunnelLoop()
 {
-	if (tunnelState == TUNNEL_ERROR)
-	{
-		throw "Initialization error!";
-		return;
-	}
-
 	stopTunnel = false;
 
 	while (!stopTunnel)
@@ -83,6 +83,8 @@ void Tunnel::tunnelLoop()
 		case TUNNEL_DESTORY:
 			destroyTunnel();
 			break;
+		default:
+			std::this_thread::sleep_for(std::chrono::milliseconds(250));
 		}
 	}
 

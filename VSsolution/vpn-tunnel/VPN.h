@@ -42,18 +42,19 @@ VPN::VPN(int argc, char* argv[])
 	vpnTunnel = nullptr;
 	coms = new IPCPiep();
 	
-	if (argc == 5 && isValidIP(argv[2]) && isValidIP(argv[4]) && isValidPort(argv[3]))
+	if (argc >= 4 && isValidIP(argv[2]) && isValidPort(argv[3]))
 	{
 		vpnLoop = true;
+		comsLoop = true;
 	}
 	else throw "Invalid arguments!";
-	
-	comsLoop = true;
+
 	comsState = VPN_INIT;
 }
 
 inline void VPN::startVPN(int argc, char* argv[])
 {
+	printf("starting VPN\n");
 	if (strcmp(argv[1], "-c") == 0 || strcmp(argv[1], "--client") == 0)
 	{
 		vpnTunnel = new ClientTunnel(argv);
@@ -71,17 +72,17 @@ inline void VPN::startVPN(int argc, char* argv[])
 
 	tunnelT = new std::thread(&Tunnel::tunnelLoop, vpnTunnel);
 
-	comsLoop = true;
-	comsState = VPN_STARED;
+	comsState = VPN_STARTED;
 }
 
 inline void VPN::communicationLoop()
 {
+	printf("comms loop\n");
 	while (vpnLoop)
 	{
 		switch (comsState)
 		{
-		case VPN_INIT:
+		case VPN_STARTED:
 			pipeLoop();
 			break;
 		case VPN_DESTORY:
@@ -96,11 +97,30 @@ inline void VPN::communicationLoop()
 
 void VPN::handleComms(char* buffer)
 {
+	static byte init = 0x0;
+
 	std::cout << buffer << std::endl;
+
+	if (!init && std::strcmp(buffer, "ACK") == 0)
+	{
+		init++;
+	}
+	else if (init)
+	{
+		if (isValidIP(buffer + 64))
+		{
+			vpnTunnel->newConnection(buffer+64, buffer);
+			return;
+		}
+
+		init--;
+		strcpy_s(buffer, 128, "RST\0");
+	}
 }
 
 void VPN::pipeLoop()
 {
+	printf("pipe loop\n");
 	char* buffer = new char[128];
 	DWORD bufferSize = 128;
 	DWORD readLen = NULL;
@@ -112,9 +132,12 @@ void VPN::pipeLoop()
 		{
 			comsLoop = false;
 			comsState = VPN_DESTORY;
+			return;
 		}
 
 		handleComms(buffer);
+
+		coms->pipeWrite(buffer, (DWORD)strlen(buffer), &writeLen);
 	}
 }
 

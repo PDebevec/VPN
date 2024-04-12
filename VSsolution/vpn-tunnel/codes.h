@@ -47,7 +47,7 @@ constexpr byte TUNNEL_ERROR			= 0x59;
 /// </summary>
 constexpr byte VPN_STOP		= 0x60;
 constexpr byte VPN_INIT		= 0x61;
-constexpr byte VPN_STARED	= 0x62;
+constexpr byte VPN_STARTED	= 0x62;
 constexpr byte VPN_DESTORY	= 0x63;
 constexpr byte VPN_ERROR	= 0x64;
 

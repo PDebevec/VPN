@@ -6,7 +6,7 @@ int main(int argc, char* argv[]) {
 		ShowWindow(hwnd, SW_HIDE);
 	}*/
 	VPN vpn(argc, argv);
-	//vpn.startVPN(argc, argv);
+	vpn.startVPN(argc, argv);
 	
 	
 	vpn.communicationLoop();
