@@ -1,12 +1,12 @@
 #pragma once
 
 #include <vector>
-#include <queue>
 #include "safeQueue.h"
 #include "UDPSocket.h"
 #include "baseWinDivert.h"
 #include "codes.h"
 #include "packetManipulation.h"
+
 
 class Tunnel
 {
@@ -25,11 +25,15 @@ private:
 	virtual void destroyTunnel() {};
 
 	virtual void WDLoop() {};
+	virtual void catchLoop() {};
+	virtual void injectLoop() {};
+	
 	virtual void UDPLoop() {};
+	virtual void recvLoop() {};
+	virtual void sendLoop() {};
 
 protected:
 	char** arg;
-	byte* secAddr;
 	byte* servAddr;
 
 	UINT8* encKey;
@@ -56,7 +60,6 @@ Tunnel::Tunnel(char* argv[])
 	stopTunnel = true;
 	udp = nullptr;
 	wd = nullptr;
-	secAddr = nullptr;
 	encKey = nullptr;
 	decKey = nullptr;
 	
@@ -109,7 +112,6 @@ Tunnel::~Tunnel()
 {
 	delete udp;
 	delete wd;
-	delete[] secAddr;
 	for (auto* t : tVec)
 	{
 		t->join();

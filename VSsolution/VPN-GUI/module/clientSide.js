@@ -1,28 +1,28 @@
 import { ipc, tunnel, startTunnel, startIPC, stopIPC, closeTunnel } from './joinedModules.js'
 import { createPublicKey, publicEncrypt, randomBytes, constants } from 'node:crypto'
-import { ChildProcess } from 'node:child_process'
 import { networkInterfaces } from 'node:os'
 import { readFileSync } from 'node:fs'
-import { Agent } from 'node:https'
-import emitter from './emitter.js'
+//import { Agent } from 'node:https'
 import { Server } from 'node:net'
-import axios from 'axios'
+import emitter from './emitter.js'
+import { WebSocket } from 'ws'
+//import axios from 'axios'
 
 const user = {hash:randomBytes(32).toString('base64url')}
 
 let httpsConnection = undefined;
 
-const https = axios.create({
-    httpsAgent: new Agent({ rejectUnauthorized: false }),
-    timeout: 1500
-});
+//const https = axios.create({
+//    httpsAgent: new Agent({ rejectUnauthorized: false }),
+//    timeout: 1500
+//});
 
 export function getStatus(err) {
     return {
         response: 'vpn-status',
         https: httpsConnection ? true : false,
-        pipe: ipc instanceof Server ? true : false,
-        tunnel: tunnel instanceof ChildProcess ? true : false,
+        ipc: ipc instanceof Server ? true : false,
+        tunnel,
         err
     }
 }
@@ -112,27 +112,24 @@ emitter.on('client-comms', async (msg) => {
             connectHTTPS(msg.data)
                 .then(data => {
                     emitter.emit('message', getStatus())
+                    data.side = 'client'
 
                     startIPC(data, handlePipeData, handlePipeMsg)
                         .then(data => {
                             emitter.emit('message', getStatus())
-                            data.side = '-c'
 
                             startTunnel(data)
                                 .then(data => {
                                     emitter.emit('message', getStatus())
                                 })
-                                .catch(async (err) => {
+                                .catch((err) => {
                                     emitter.emit('message', getStatus(err))
-                                    tunnel = undefined
-                                    await stopIPC()
-                                    await closeConnection()
+                                    emitter.emit('client-comms', { action: 'check-status' })
                                 })
                         })
-                        .catch(async (err) => {
+                        .catch((err) => {
                             emitter.emit('message', getStatus(err))
-                            ipc = undefined
-                            await closeConnection()
+                            emitter.emit('client-comms', { action: 'check-status' })
                         })
                 }).catch(err => {
                     emitter.emit('message', getStatus(err))
@@ -149,7 +146,13 @@ emitter.on('client-comms', async (msg) => {
             emitter.emit('message', getStatus())
             emitter.emit('close-module')
             break;
-        case 'vpn-status':
+        case 'check-status':
+            if (httpsConnection || ipc instanceof net.Server || tunnel) {
+                emitter.emit('client-comms', { action: 'close-tunnel' })
+            }
+            else {
+                emitter.emit('client-comms', { action: 'start-tunnel' })
+            }
             break;
         default:
     }

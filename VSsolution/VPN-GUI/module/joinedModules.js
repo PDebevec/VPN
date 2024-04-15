@@ -1,10 +1,9 @@
 import { exec } from 'node:child_process'
-import { createServer } from 'node:net'
+import { createServer, Server } from 'node:net'
 import emitter from './emitter.js'
-import { rejects } from 'node:assert'
 
 export let ipc = undefined
-export let tunnel = undefined
+export let tunnel = false
 
 const tunnelPath = '..\\x64\\Release\\vpn-tunnel.exe'
 
@@ -40,7 +39,7 @@ export function generateRSAkeyPair() {
     })
 }
 export function startIPC(data, handlePipeData, handlePipeMsg) {
-    console.log('starting pipe')
+    console.log(data)
     return new Promise((resolve, reject) => {
         try {
             ipc = createServer((socket) => {
@@ -58,9 +57,7 @@ export function startIPC(data, handlePipeData, handlePipeMsg) {
                 })
 
                 socket.on('end', () => {
-                    emitter.emit('message', {
-                        action: 'pipe-disconnected'
-                    })
+                    emitter.emit(data.side + '-comms', {action: 'close-tunnel'})
                 })
 
                 emitter.on('pipe-comms', (msg) => {
@@ -81,33 +78,70 @@ export function startIPC(data, handlePipeData, handlePipeMsg) {
     })
 }
 export function stopIPC() {
-    ipc.close()
-    ipc = undefined
+    return new Promise((resolve, reject) => {
+        if (!ipc instanceof Server) {
+            ipc = undefined
+            resolve(true)
+            return
+        }
+
+        try {
+            ipc.close()
+            ipc = undefined
+            resolve(true)
+        } catch (err) {
+            reject(err.message)
+        }
+    })
 }
 export function startTunnel(data) {
     return new Promise((resolve, reject) => {
-        tunnel = exec(`powershell -Command "Start-Process -Verb RunAs '${tunnelPath}' -ArgumentList '${data.side} ${data.primary} ${data.port}'"`,
+        if (tunnel) {
+            reject(false)
+            return
+        }
+        exec(`powershell -Command "Start-Process -Verb RunAs '${tunnelPath}' -ArgumentList '--${data.side} ${data.primary} ${data.port}'"`,
             (err, stdout, stderr) => {
                 if (err) {
                     reject(err.message)
                 } else {
+                    tunnel = true
                     resolve()
                 }
-
             })
     })
 }
 export function closeTunnel() {
     return new Promise((resolve, reject) => {
+        if (!tunnel) {
+            tunnel = false
+            resolve(true)
+            return
+        }
         exec(`powershell -Command "Start-Process -Verb RunAs -FilePath 'powershell' -ArgumentList '-Command Get-Process vpn-tunnel | Stop-Process'"`,
             (err, stdout, stderr) => {
+                tunnel = false
                 if (err) {
                     reject(err)
                 } else {
                     resolve(true)
                 }
             })
-        tunnel = undefined
     })
 }
 
+export function checkTunnelStatus() {
+    return new Promise((resolve, reject) => {
+        exec('powershell -Command "Get-Process vpn-tunnel"', (err, stdout, stderr) => {
+            if (err) {
+                reject(err.message);
+            } else {
+                if (stdout.includes('vpn-tunnel')) {
+                    resolve(true);
+                } else {
+                    resolve(false);
+                }
+            }
+        });
+    });
+}

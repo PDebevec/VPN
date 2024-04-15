@@ -1,25 +1,24 @@
-import { ipc, tunnel, startTunnel, startIPC, stopIPC, closeTunnel } from './joinedModules.js'
+import { tunnel, ipc, startTunnel, startIPC, stopIPC, closeTunnel } from './joinedModules.js'
 import { createPrivateKey, privateDecrypt, constants, randomBytes } from 'node:crypto'
-import { ChildProcess } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { networkInterfaces } from 'node:os'
-import * as https from 'node:https'
-import emitter from './emitter.js'
+import { Server, createServer } from 'node:https'
 import * as net from 'node:net'
-import express from 'express'
+import emitter from './emitter.js'
+import { WebSocketServer } from 'ws'
 
 const users = []
 const secondaryIPs = []
 
 let server = undefined;
-let app = undefined
+let wss = undefined;
 
 export function getStatus(err) {
     return {
         response: 'vpn-status',
-        https: server instanceof https.Server ? true : false,
-        pipe: ipc instanceof net.Server ? true : false,
-        tunnel: tunnel instanceof ChildProcess ? true : false,
+        https: server instanceof Server ? true : false,
+        ipc: ipc instanceof net.Server ? true : false,
+        tunnel,
         err
     }
 }
@@ -28,19 +27,36 @@ function startHTTPS(data) {
         console.log(data)
 
         try {
-            app = express()
-
-            app.use(express.json())
-
-            server = https.createServer({
+            server = createServer({
                 cert: readFileSync(data.cert),
                 key: readFileSync(data.key)
-            }, app)
-                .listen(data.port, data.primary, () => resolve(data))
+            })
 
-            app.get('/connect/:user', (req, res) => GETconnect(req, res))
-            app.get('/disconnect/:user', (req, res) => GETdisconnect(req, res))
-            app.post('/encryption/:user', (req, res) => POSTencryption(req, res))
+            wss = new WebSocketServer({ server })
+
+            server.listen(data.port, data.primary, () => resolve(data))
+
+            wss.on('connection', (ws) => {
+                ws.on('error', (err) => {
+                    console.log(err)
+                })
+
+                ws.on('message', (msg) => {
+                    console.log(typeof msg)
+                    console.log(msg)
+                })
+
+                ws.on('close', (code, res) => {
+                    console.log(code)
+                    console.log(res)
+                })
+            })
+
+            wss.on('close')
+
+            wss.get('/connect/:user', (req, res) => GETconnect(req, res))
+            wss.get('/disconnect/:user', (req, res) => GETdisconnect(req, res))
+            wss.post('/encryption/:user', (req, res) => POSTencryption(req, res))
 
         } catch (err) {
             reject(err.message)
@@ -116,12 +132,21 @@ function POSTencryption(req, res) {
 }
 function closeConnection() {
     return new Promise((resolve, reject) => {
+        if (!server instanceof Server) {
+            server = null
+            wss = null
+            resolve(true)
+            return
+        }
+
         try {
             server.close()
             server = null
-            app = null
+            wss = null
             resolve()
         } catch (err) {
+            server = null
+            wss = null
             reject(err.message)
         }
     })
@@ -146,8 +171,6 @@ function findSecondaryIP(data) {
                 secondaryIPs.push(item.address)
             }
         })
-
-        break
     }
 
     return secondaryIPs.length
@@ -165,7 +188,6 @@ function handlePipeMsg(msg) {
     }
 }
 
-
 emitter.on('server-comms', async (msg) => {
     console.log(msg)
     switch (msg.action) {
@@ -178,44 +200,50 @@ emitter.on('server-comms', async (msg) => {
             startHTTPS(msg.data)
                 .then(data => {
                     emitter.emit('message', getStatus())
+                    data.side = 'server'
 
                     startIPC(data, handlePipeData, handlePipeMsg)
                         .then(data => {
                             emitter.emit('message', getStatus())
-                            data.side = '-s'
 
                             startTunnel(data)
                                 .then(data => {
                                     emitter.emit('message', getStatus())
+                                    console.log('no error')
                                 })
                                 .catch(async (err) => {
+                                    console.log('error!')
                                     emitter.emit('message', getStatus(err))
-                                    tunnel = undefined
-                                    await stopIPC()
-                                    await closeConnection()
+                                    emitter.emit('server-comms', {action: 'check-status'})
                                 })
                         })
                         .catch(async (err) => {
                             emitter.emit('message', getStatus(err.message))
-                            ipc = undefined
-                            await closeConnection()
+                            emitter.emit('server-comms', { action: 'check-status' })
                         })
                 }).catch(err => {
                     emitter.emit('message', getStatus(err.message))
                     server = undefined
-                    app = undefined
+                    wss = undefined
                 })
             break;
         case 'close-tunnel':
             await closeTunnel()
             emitter.emit('message', getStatus())
             await stopIPC()
+            emitter.removeAllListeners('pipe-comms')
             emitter.emit('message', getStatus())
             await closeConnection()
             emitter.emit('message', getStatus())
             emitter.emit('close-module')
             break;
-        case 'vpn-status':
+        case 'check-status':
+            if (server instanceof Server || ipc instanceof net.Server || tunnel) {
+                emitter.emit('server-comms', { action: 'close-tunnel' })
+            }
+            else {
+                emitter.emit('server-comms', {action: 'start-tunnel'})
+            }
             break;
         default:
     }

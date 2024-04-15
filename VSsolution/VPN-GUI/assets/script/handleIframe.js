@@ -5,44 +5,71 @@ function isValidIPAddress(ipAddress) {
 }
 
 const iframe = document.getElementById('content')
+let frameDoc = undefined
 let side = undefined
 let tunnelState = undefined;
 let httpsState = undefined;
-let setupSettings = {}
-
-window.electronAPI.recvData(handleResponse)
 
 iframe.addEventListener('load', () => {
+    frameDoc = document.getElementById('content').contentDocument
     side = iframe.name
 
-    if (iframe.contentDocument.title == 'setup')
+    if (side == 'server') {
+        let other = document.getElementById('client-collapse-btn')
+        if (!other.classList.contains('collapsed')) {
+            other.click()
+        }
+    }
+    else if (side == 'client') {
+        let other = document.getElementById('server-collapse-btn')
+        if (!other.classList.contains('collapsed')) {
+            other.click()
+        }
+    }
+
+    if (frameDoc.title == 'setup')
     {
         asignInputValues()
-        iframe.contentDocument.getElementById('confirm')
+        frameDoc.getElementById('confirm')
             .addEventListener('click', confirmBtn);
-        iframe.contentDocument.getElementById('clear')
+        frameDoc.getElementById('clear')
             .addEventListener('click', clearBtn);
-        iframe.contentDocument.getElementById('create-keycert')
+        frameDoc.getElementById('create-keycert')
             .addEventListener('click', () => window.electronAPI.sendData({ action: 'create-cert' }))
-        iframe.contentDocument.getElementById('create-keypair')
+        frameDoc.getElementById('create-keypair')
             .addEventListener('click', () => window.electronAPI.sendData({ action: 'generate-keypair' }))
     }
-    else if (iframe.contentDocument.title == 'status')
+    else if (frameDoc.title == 'status')
     {
         checkLocalStorage()
-        iframe.contentDocument.getElementById('start-stop')
+        frameDoc.getElementById('start-stop')
             .addEventListener('click', toggleVPN);
     } else {
         return
     }
 })
 
-function handleResponse(event, msg) {
+window.electronAPI.recvData((event, msg) => {
     console.log(msg)
     if (msg.response == 'vpn-status') {
-        httpsState = msg.https
-        tunnelState = msg.tunnel
+        changeStatus(msg)
     }
+})
+function changeStatus(status) {
+    const statuses = ['https', 'ipc', 'tunnel'];
+
+    statuses.forEach((s) => {
+        const span = frameDoc.getElementById(`${s}-status`);
+        if (status[s]) {
+            span.classList.remove('bg-danger');
+            span.classList.add('bg-success');
+            span.innerHTML = "ON";
+        } else {
+            span.classList.remove('bg-success');
+            span.classList.add('bg-danger');
+            span.innerHTML = "OFF";
+        }
+    });
 }
 function toggleVPN() {
     let data = {
@@ -59,32 +86,30 @@ function toggleVPN() {
 }
 function asignInputValues() {
     if (side == 'client') {
-        iframe.contentDocument.getElementById('server-cert').classList.add('d-none')
-        iframe.contentDocument.getElementById('server-key').classList.add('d-none')
+        frameDoc.getElementById('server-cert').classList.add('d-none')
+        frameDoc.getElementById('server-key').classList.add('d-none')
     } else if (side == 'server') {
-        iframe.contentDocument.getElementById('client-key').classList.add('d-none')
+        frameDoc.getElementById('client-key').classList.add('d-none')
     }
     if (localStorage.getItem(side) != null) {
-        setupSettings = JSON.parse(localStorage.getItem(side))
-        let parsed = setupSettings
-        iframe.contentDocument.getElementById('primary').value = parsed.primary ? parsed.primary : ''
-        iframe.contentDocument.getElementById('port').value = parsed.port ? parsed.port : ''
-        iframe.contentDocument.getElementById('secondary').value = parsed.secondary ? parsed.secondary : ''
+        let parsed = JSON.parse(localStorage.getItem(side))
+        frameDoc.getElementById('primary').value = parsed.primary ? parsed.primary : ''
+        frameDoc.getElementById('port').value = parsed.port ? parsed.port : ''
     }
 }
 function confirmBtn(event) {
     let ids = []
 
     if (side == 'client') {
-        ids = ['public', 'primary', 'port', 'secondary'];
+        ids = ['public', 'primary', 'port'];
     } else if (side == 'server') {
-        ids = ['key', 'cert', 'primary', 'port', 'secondary'];
+        ids = ['key', 'cert', 'primary', 'port'];
     }
 
-    const contentDocument = iframe.contentDocument;
+    let settings = {}
 
     ids.forEach(id => {
-        const element = contentDocument.getElementById(id);
+        const element = frameDoc.getElementById(id);
         if (element) {
             if (!element.value) {
                 element.classList.add('is-invalid')
@@ -92,39 +117,34 @@ function confirmBtn(event) {
                 element.classList.remove('is-invalid')
                 if (element.files) {
                     const value = element.files[0].path
-                    setupSettings[id] = value || setupSettings[id];
+                    settings[id] = value || settings[id];
                 } else {
                     const value = id === 'port' ? Number(element.value) : element.value;
-                    setupSettings[id] = value || setupSettings[id];
+                    settings[id] = value || settings[id];
                 }
             }
         }
     });
 
-    localStorage.setItem(side, JSON.stringify(setupSettings));
-    console.log(setupSettings);
+    localStorage.setItem(side, JSON.stringify(settings));
+    console.log(settings);
 }
 function clearBtn() {
-    let ids = ['key', 'cert', 'public', 'primary', 'port', 'secondary'];
+    let ids = ['key', 'cert', 'public', 'primary', 'port'];
     localStorage.removeItem(side)
-    setupSettings = {}
     ids.forEach(id => {
-        iframe.contentDocument.getElementById(id).value = ''
+        frameDoc.getElementById(id).value = ''
     })
 }
 function checkLocalStorage() {
-    iframe.contentDocument.getElementById('error-card').classList.add('d-none')
+    frameDoc.getElementById('error-card').classList.add('d-none')
+    window.electronAPI.sendData({
+        action: 'get-vpn-status'
+    })
     if (localStorage.getItem(side) == null) {
-        iframe.contentDocument.getElementById('info-card').classList.add('border-warning', 'text-danger')
-        iframe.contentDocument.getElementById('status-text').innerHTML = `Set up the ${side} before stating the VPN!`
+        frameDoc.getElementById('info-card').classList.add('border-warning', 'text-danger')
+        frameDoc.getElementById('status-text').innerHTML = `Set up the ${side} info before stating the VPN!`
     } else {
-        if (tunnelState) {
-
-        } else {
-            iframe.contentDocument.getElementById('info-card').classList.add('d-none')
-            window.electronAPI.sendData({
-                action: 'get-vpn-status'
-            })
-        }
+        frameDoc.getElementById('info-card').classList.add('d-none')
     }
 }

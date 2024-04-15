@@ -18,12 +18,14 @@
     "@electron-forge/maker-zip": "^7.3.1",
     "axios": "^1.6.8",
     "electron": "^29.1.1",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "ws": "^8.16.0"
   },
   "dependencies": {
-    "bootstrap": "^5.3.3",
     "axios": "^1.6.8",
+    "bootstrap": "^5.3.3",
     "electron": "^29.1.1",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "ws": "^8.16.0"
   }
 }

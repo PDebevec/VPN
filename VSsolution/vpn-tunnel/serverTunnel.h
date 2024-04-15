@@ -1,5 +1,6 @@
 #pragma once
 
+#include <unordered_set>
 #include "tunnel.h"
 
 class ServerTunnel : public Tunnel
@@ -17,11 +18,15 @@ private:
 
 	void WDLoop() override;
 	void UDPLoop() override;
+private:
+	//std::unordered_set<uint32_t> secAddrs;
+	byte* secAddr;
 };
 
 ServerTunnel::ServerTunnel(char* argv[])
 	:Tunnel(argv)
 {
+	secAddr == nullptr;
 }
 
 void ServerTunnel::initTunnel()
@@ -49,6 +54,7 @@ inline void ServerTunnel::newConnection(char* secondary, char* keys)
 {
 	if (switchState != TUNNEL_LOOP)
 	{
+		//secAddrs.insert(inet_addr(secondary));
 		secAddr = PM::ipStringToArray(secondary);
 
 		decKey = new UINT8[32];

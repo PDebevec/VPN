@@ -33,12 +33,11 @@ ipcMain.on('app-comms', async (event, data) => {
             break
         case 'toggle-vpn':
             if (vpnModule) {
-                emitter.emit(data.side + '-comms', { action: 'close-tunnel', data: data.parsed })
-                break
+                emitter.emit(data.side + '-comms', {action: 'check-status'})
+                break;
             }
             try {
-                const mod = await import(`./module/${data.side}Side.js`);
-                vpnModule = mod;
+                vpnModule = await import(`./module/${data.side}Side.js`);;
 
                 emitter.emit(data.side + '-comms', {
                     action: 'start-tunnel',

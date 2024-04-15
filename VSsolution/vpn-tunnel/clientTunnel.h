@@ -16,12 +16,20 @@ private:
 	void destroyTunnel() override;
 
 	void WDLoop() override;
+	void catchLoop() override {};
+	void injectLoop() override {};
+
 	void UDPLoop() override;
+	void recvLoop() override {};
+	void sendLoop() override {};
+private:
+	byte* secAddr;
 };
 
 ClientTunnel::ClientTunnel(char* argv[])
 	:Tunnel(argv)
 {
+	secAddr = nullptr;
 }
 
 void ClientTunnel::initTunnel()
@@ -109,7 +117,8 @@ void ClientTunnel::WDLoop()
 		if (addr.IPv6)
 		{
 		}
-		else if (addr.Outbound && !PM::isDstIP(packet.get(), servAddr) && !PM::isLocalPacket(packet.get()))
+		//else if (addr.Outbound && !PM::isDstIP(packet.get(), servAddr) && !PM::isLocalPacket(packet.get()))
+		else if (addr.Outbound && !PM::isLocalPacket(packet.get()))
 		{
 			caught.push(packet.release(), recvLen);
 			packet.reset(new UINT8[WINDIVERT_MTU_MAX]);
@@ -195,4 +204,5 @@ void ClientTunnel::UDPLoop()
 
 ClientTunnel::~ClientTunnel()
 {
+	delete[] secAddr;
 }
