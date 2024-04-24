@@ -13,25 +13,25 @@
     <div class="container-fluid mt-4">
         <div class="row mb-4">
             <div class="col-md-8 offset-md-2">
-                <div class="card text-center" id="info-card">
+                <div class="card text-center border-warning" id="info-card">
                     <div class="card-body">
-                        <h6 id="status-text" class="card-text mb-0"></h6>
+                        <h6 id="status-text" class="card-text mb-0 text-danger"></h6>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="row">
-            <div class="col-md-12">
+        <div class="row mb-4">
+            <div class="col-md-12 disabled">
                 <div class="card">
                     <div class="card-body">
                         <button id="start-stop" class="btn btn-primary">Toggle VPN</button>
                     </div>
                     <ul class="list-group list-group-flush">
                         <li class="list-group-item">
-                            HTTPS <span id="https-status" class="badge bg-danger">OFF</span>
+                            WSS <span id="wss-status" class="badge bg-danger">OFF</span>
                         </li>
                         <li class="list-group-item">
-                            IPC <span id="ipc-status" class="badge bg-danger">Disconnected</span>
+                            IPC <span id="ipc-status" class="badge bg-danger">OFF</span>
                         </li>
                         <li class="list-group-item">
                             TUNNEL <span id="tunnel-status" class="badge bg-danger">OFF</span>
@@ -42,9 +42,9 @@
         </div>
         <div class="row">
             <div class="col-md-12">
-                <div class="card text-center" id="error-card">
+                <div class="card text-center border-warning" id="error-card">
                     <div class="card-body">
-                        <h6 id="error-message"></h6>
+                        <h6 id="error-message" class="text-danger"></h6>
                     </div>
                 </div>
             </div>

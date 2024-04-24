@@ -2,25 +2,25 @@ import { ipc, tunnel, startTunnel, startIPC, stopIPC, closeTunnel } from './join
 import { createPublicKey, publicEncrypt, randomBytes, constants } from 'node:crypto'
 import { networkInterfaces } from 'node:os'
 import { readFileSync } from 'node:fs'
-//import { Agent } from 'node:https'
+import { Agent } from 'node:https'
 import { Server } from 'node:net'
 import emitter from './emitter.js'
 import { WebSocket } from 'ws'
-//import axios from 'axios'
+import axios from 'axios'
 
 const user = {hash:randomBytes(32).toString('base64url')}
 
-let httpsConnection = undefined;
+let wss = undefined
 
-//const https = axios.create({
-//    httpsAgent: new Agent({ rejectUnauthorized: false }),
-//    timeout: 1500
-//});
+const https = axios.create({
+    httpsAgent: new Agent({ rejectUnauthorized: false }),
+    timeout: 1500
+});
 
 export function getStatus(err) {
     return {
         response: 'vpn-status',
-        https: httpsConnection ? true : false,
+        wss: wss instanceof WebSocket ? true : false,
         ipc: ipc instanceof Server ? true : false,
         tunnel,
         err
@@ -44,8 +44,24 @@ function connectHTTPS(data) {
                 https.post(`https://${data.primary}:${data.port}/encryption/${user.hash}`, { encrypted })
                     .then((res) => {
                         user.keys = res.data.keys
-                        httpsConnection = true
-                        resolve(data)
+                        //httpsConnection = true
+                        //resolve(data)
+
+                        wss = new WebSocket(`wss://${data.primary}:${data.port}/websocket/${user.hash}`, {rejectUnauthorized: false})
+                        
+                        wss.on('open', () => {
+                            console.log('connected');
+                            resolve(data)
+                            wss.send(JSON.stringify({ mijav: 'string' }));
+                        });
+
+                        wss.on('close', () => {
+                            console.log('disconnected');
+                        });
+
+                        wss.on('message', (data) => {
+                            console.log(data);
+                        });
                     })
                     .catch(err => reject(err.message))
             })
@@ -54,12 +70,19 @@ function connectHTTPS(data) {
 }
 function closeConnection(data) {
     return new Promise((resolve, reject) => {
-        https.get(`https://${data.primary}:${data.port}/disconnect/${user.hash}`)
-            .then(res => {
-                httpsConnection = false
-                resolve(res.data)
-            })
-            .catch(err => reject(err.message))
+        if (!wss) {
+            wss = null
+            resolve(true)
+            return
+        }
+        try {
+            wss.close()
+            wss = null
+            resolve()
+        } catch (err) {
+            wss = null
+            reject(err.message)
+        }
     })
 }
 function getSecondaryIP() {
@@ -118,7 +141,7 @@ emitter.on('client-comms', async (msg) => {
                         .then(data => {
                             emitter.emit('message', getStatus())
 
-                            startTunnel(data)
+                            startTunnel(data, `${data.low} ${data.high}`)
                                 .then(data => {
                                     emitter.emit('message', getStatus())
                                 })
@@ -133,21 +156,24 @@ emitter.on('client-comms', async (msg) => {
                         })
                 }).catch(err => {
                     emitter.emit('message', getStatus(err))
-                    httpsConnection = undefined
+                    //httpsConnection = undefined
                 })
             break;
         case 'close-tunnel':
             await closeTunnel()
+                .catch(err => emitter.emit('message', getStatus(err)))
             emitter.emit('message', getStatus())
             await stopIPC()
+                .catch(err => emitter.emit('message', getStatus(err)))
             emitter.removeAllListeners('pipe-comms')
             emitter.emit('message', getStatus())
             await closeConnection(msg.data)
+                .catch(err => emitter.emit('message', getStatus(err)))
             emitter.emit('message', getStatus())
             emitter.emit('close-module')
             break;
         case 'check-status':
-            if (httpsConnection || ipc instanceof net.Server || tunnel) {
+            if (wss || ipc instanceof net.Server || tunnel) {
                 emitter.emit('client-comms', { action: 'close-tunnel' })
             }
             else {

@@ -165,9 +165,9 @@
     <ClInclude Include="baseSocket.h" />
     <ClInclude Include="clientTunnel.h" />
     <ClInclude Include="communication.h" />
+    <ClInclude Include="ConnectedClients.h" />
     <ClInclude Include="safeQueue.h" />
     <ClInclude Include="serverTunnel.h" />
-    <ClInclude Include="TCPSocket.h" />
     <ClInclude Include="baseWinDivert.h" />
     <ClInclude Include="codes.h" />
     <ClInclude Include="packetManipulation.h" />

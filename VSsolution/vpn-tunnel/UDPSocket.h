@@ -53,13 +53,13 @@ bool UDPSocket::initUDPServer()
 		return false;
 	}
 
-	u_long mode = 1;
+	/*u_long mode = 1;
 	if (ioctlsocket(soc, FIONBIO, &mode) != 0) {
 		std::cerr << "Failed to set socket to non-blocking mode\n";
 		closesocket(soc);
 		WSACleanup();
 		return 1;
-	}
+	}*/
 
 	udpState = UDP_INITIALIZED;
 	return true;
@@ -83,13 +83,13 @@ bool UDPSocket::initUDPClient()
 		return false;
 	}
 
-	u_long mode = 1;
+	/*u_long mode = 1;
 	if (ioctlsocket(soc, FIONBIO, &mode) != 0) {
 		std::cerr << "Failed to set socket to non-blocking mode\n";
 		closesocket(soc);
 		WSACleanup();
 		return 1;
-	}
+	}*/
 
 	udpState = UDP_INITIALIZED;
 	return true;

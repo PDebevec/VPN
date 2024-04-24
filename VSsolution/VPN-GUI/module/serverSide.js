@@ -1,22 +1,24 @@
 import { tunnel, ipc, startTunnel, startIPC, stopIPC, closeTunnel } from './joinedModules.js'
 import { createPrivateKey, privateDecrypt, constants, randomBytes } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { networkInterfaces } from 'node:os'
 import { Server, createServer } from 'node:https'
-import * as net from 'node:net'
+import { WebSocketServer, WebSocket } from 'ws'
+import { networkInterfaces } from 'node:os'
+import { readFileSync } from 'node:fs'
 import emitter from './emitter.js'
-import { WebSocketServer } from 'ws'
+import * as net from 'node:net'
+import express from 'express'
 
-const users = []
+let users = []
 const secondaryIPs = []
 
 let server = undefined;
+let app = undefined;
 let wss = undefined;
 
 export function getStatus(err) {
     return {
         response: 'vpn-status',
-        https: server instanceof Server ? true : false,
+        wss: wss ? true : false,
         ipc: ipc instanceof net.Server ? true : false,
         tunnel,
         err
@@ -27,42 +29,69 @@ function startHTTPS(data) {
         console.log(data)
 
         try {
+            app = express()
+
             server = createServer({
                 cert: readFileSync(data.cert),
                 key: readFileSync(data.key)
-            })
+            }, app)
 
-            wss = new WebSocketServer({ server })
+            wss = new WebSocketServer({ noServer: true })
 
             server.listen(data.port, data.primary, () => resolve(data))
 
-            wss.on('connection', (ws) => {
-                ws.on('error', (err) => {
-                    console.log(err)
-                })
+            wss.on('connection', WSSonNewConnection)
 
-                ws.on('message', (msg) => {
-                    console.log(typeof msg)
-                    console.log(msg)
-                })
+            app.use(express.json())
+            server.on('upgrade', upgradeToWebSocket);
 
-                ws.on('close', (code, res) => {
-                    console.log(code)
-                    console.log(res)
-                })
-            })
-
-            wss.on('close')
-
-            wss.get('/connect/:user', (req, res) => GETconnect(req, res))
-            wss.get('/disconnect/:user', (req, res) => GETdisconnect(req, res))
-            wss.post('/encryption/:user', (req, res) => POSTencryption(req, res))
+            app.get('/connect/:user', (req, res) => GETconnect(req, res))
+            app.get('/disconnect/:user', (req, res) => GETdisconnect(req, res))
+            app.post('/encryption/:user', (req, res) => POSTencryption(req, res))
 
         } catch (err) {
             reject(err.message)
             return
         }
     })
+}
+function WSSonNewConnection(ws, req) {
+    console.log(`connected ${req.userHash}`)
+
+    ws.on('message', (msg) => {
+        console.log(msg)
+    })
+
+    ws.on('close', (code, res) => {
+        emitter.emit('pipe-comms', { action: 'disconnect-user', hash: req.userHash, secondary:users[req.userHash].secondary })
+    })
+
+    ws.on('error', (err) => {
+        console.log(err.message)
+        try {
+            ws.close()
+        } catch (err) {
+
+        }
+    })
+}
+function upgradeToWebSocket(req, socket, head) {
+    let split = req.url.split('/')
+    if (!(split[1] == 'websocket' && split.length == 3)) {
+        socket.end('HTTP/1.1 400 Bad Request');
+        return;
+    }
+
+    if (!users[split[2]]) {
+        socket.end('HTTP/1.1 400 Bad Request');
+        return;
+    }
+
+    req.userHash = split[2]
+
+    wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit('connection', ws, req);
+    });
 }
 function GETconnect(req, res) {
     console.log('get connect')
@@ -142,6 +171,7 @@ function closeConnection() {
         try {
             server.close()
             server = null
+            wss.close()
             wss = null
             resolve()
         } catch (err) {
@@ -184,6 +214,8 @@ function handlePipeMsg(msg) {
         case 'tunnel-user':
             return Buffer.concat([Buffer.from(users[msg.userHash].encryption, 'hex'), Buffer.from(users[msg.userHash].secondary + '\0')])
             break
+        case 'disconnect-user':
+            return Buffer.from(`FIN${msg.secondary}\0`)
         default:
     }
 }
@@ -205,14 +237,13 @@ emitter.on('server-comms', async (msg) => {
                     startIPC(data, handlePipeData, handlePipeMsg)
                         .then(data => {
                             emitter.emit('message', getStatus())
+                            data.ipRange = ''
 
-                            startTunnel(data)
+                            startTunnel(data, '')
                                 .then(data => {
                                     emitter.emit('message', getStatus())
-                                    console.log('no error')
                                 })
                                 .catch(async (err) => {
-                                    console.log('error!')
                                     emitter.emit('message', getStatus(err))
                                     emitter.emit('server-comms', {action: 'check-status'})
                                 })
@@ -229,11 +260,14 @@ emitter.on('server-comms', async (msg) => {
             break;
         case 'close-tunnel':
             await closeTunnel()
+                .catch(err => emitter.emit('message', getStatus(err)))
             emitter.emit('message', getStatus())
             await stopIPC()
+                .catch(err => emitter.emit('message', getStatus(err)))
             emitter.removeAllListeners('pipe-comms')
             emitter.emit('message', getStatus())
             await closeConnection()
+                .catch(err => emitter.emit('message', getStatus(err)))
             emitter.emit('message', getStatus())
             emitter.emit('close-module')
             break;

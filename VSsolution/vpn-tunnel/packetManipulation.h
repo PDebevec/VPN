@@ -62,8 +62,8 @@ namespace PM {
         }
 	}
 
-    byte* ipStringToArray(char* ipString) {
-        byte* byteArray = new byte[4];
+    UINT8* ipStringToArray(char* ipString) {
+        UINT8* byteArray = new UINT8[4];
 
         char* nextToken = nullptr;
         char* token = strtok_s(ipString, ".", &nextToken);
@@ -77,14 +77,22 @@ namespace PM {
         return byteArray;
     }
 
-    void changePacketDstIP(UINT8* packet, byte* ip) {
+    UINT8* getSinglePacket(UINT8* packets, UINT length) {
+        UINT8* extractedPacket = new UINT8[length];
+
+        std::memcpy(extractedPacket, packets, length);
+
+        return extractedPacket;
+    }
+
+    void changePacketDstIP(UINT8* packet, UINT8* ip) {
         packet[16] = ip[0];
         packet[17] = ip[1];
         packet[18] = ip[2];
         packet[19] = ip[3];
     }
 
-    void changePacketSrcIP(UINT8* packet, byte* ip) {
+    void changePacketSrcIP(UINT8* packet, UINT8* ip) {
         packet[12] = ip[0];
         packet[13] = ip[1];
         packet[14] = ip[2];
@@ -168,20 +176,20 @@ namespace PM {
         EVP_CIPHER_CTX_free(ctx);
     }
 
-    inline bool isDstIP(unsigned char* packet, byte* ip) {
+    inline bool isDstIP(UINT8* packet, UINT8* ip) {
         return (
-            static_cast<byte>(packet[16]) == ip[0] &&
-            static_cast<byte>(packet[17]) == ip[1] &&
-            static_cast<byte>(packet[18]) == ip[2] &&
-            static_cast<byte>(packet[19]) == ip[3]);
+            packet[16] == ip[0] &&
+            packet[17] == ip[1] &&
+            packet[18] == ip[2] &&
+            packet[19] == ip[3]);
     }
     
-    inline bool isSrcIP(unsigned char* packet, byte* ip) {
+    inline bool isSrcIP(UINT8* packet, UINT8* ip) {
         return (
-            static_cast<byte>(packet[12]) == ip[0] &&
-            static_cast<byte>(packet[13]) == ip[1] &&
-            static_cast<byte>(packet[14]) == ip[2] &&
-            static_cast<byte>(packet[15]) == ip[3]);
+            packet[12] == ip[0] &&
+            packet[13] == ip[1] &&
+            packet[14] == ip[2] &&
+            packet[15] == ip[3]);
     }
 
     template <typename T>

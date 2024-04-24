@@ -50,13 +50,21 @@ iframe.addEventListener('load', () => {
 })
 
 window.electronAPI.recvData((event, msg) => {
-    console.log(msg)
     if (msg.response == 'vpn-status') {
         changeStatus(msg)
     }
 })
 function changeStatus(status) {
-    const statuses = ['https', 'ipc', 'tunnel'];
+    if (status.err) {
+        frameDoc.getElementById('error-message').innerHTML = status.err
+        frameDoc.getElementById('error-card').classList.remove('d-none')
+        return
+    } else {
+        frameDoc.getElementById('error-message').innerHTML = ''
+        frameDoc.getElementById('error-card').classList.add('d-none')
+    }
+
+    const statuses = ['wss', 'ipc', 'tunnel'];
 
     statuses.forEach((s) => {
         const span = frameDoc.getElementById(`${s}-status`);
@@ -90,18 +98,21 @@ function asignInputValues() {
         frameDoc.getElementById('server-key').classList.add('d-none')
     } else if (side == 'server') {
         frameDoc.getElementById('client-key').classList.add('d-none')
+        frameDoc.getElementById('local-ips').classList.add('d-none')
     }
     if (localStorage.getItem(side) != null) {
         let parsed = JSON.parse(localStorage.getItem(side))
         frameDoc.getElementById('primary').value = parsed.primary ? parsed.primary : ''
         frameDoc.getElementById('port').value = parsed.port ? parsed.port : ''
+        frameDoc.getElementById('low').value = parsed.low ? parsed.low : ''
+        frameDoc.getElementById('high').value = parsed.high ? parsed.high : ''
     }
 }
 function confirmBtn(event) {
     let ids = []
 
     if (side == 'client') {
-        ids = ['public', 'primary', 'port'];
+        ids = ['public', 'primary', 'port', 'low', 'high'];
     } else if (side == 'server') {
         ids = ['key', 'cert', 'primary', 'port'];
     }
@@ -130,7 +141,7 @@ function confirmBtn(event) {
     console.log(settings);
 }
 function clearBtn() {
-    let ids = ['key', 'cert', 'public', 'primary', 'port'];
+    let ids = ['key', 'cert', 'public', 'primary', 'port', 'low', 'high'];
     localStorage.removeItem(side)
     ids.forEach(id => {
         frameDoc.getElementById(id).value = ''
@@ -138,12 +149,15 @@ function clearBtn() {
 }
 function checkLocalStorage() {
     frameDoc.getElementById('error-card').classList.add('d-none')
+
     window.electronAPI.sendData({
         action: 'get-vpn-status'
     })
+
     if (localStorage.getItem(side) == null) {
-        frameDoc.getElementById('info-card').classList.add('border-warning', 'text-danger')
         frameDoc.getElementById('status-text').innerHTML = `Set up the ${side} info before stating the VPN!`
+        frameDoc.getElementById('info-card').classList.remove('d-none')
+        frameDoc.getElementById('start-stop').classList.add('disabled')
     } else {
         frameDoc.getElementById('info-card').classList.add('d-none')
     }

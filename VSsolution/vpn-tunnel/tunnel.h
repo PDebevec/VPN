@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <functional>
 #include "safeQueue.h"
 #include "UDPSocket.h"
 #include "baseWinDivert.h"
@@ -16,6 +17,7 @@ public:
 	void tunnelLoop();
 	const std::atomic<byte>* getTunnelState();
 	virtual void newConnection(char* secondary, char* keys) {};
+	virtual void closeConnection(char* secondary) {};
 	void stopLoop();
 
 	~Tunnel();
@@ -25,16 +27,12 @@ private:
 	virtual void destroyTunnel() {};
 
 	virtual void WDLoop() {};
-	virtual void catchLoop() {};
-	virtual void injectLoop() {};
 	
 	virtual void UDPLoop() {};
-	virtual void recvLoop() {};
-	virtual void sendLoop() {};
 
 protected:
 	char** arg;
-	byte* servAddr;
+	UINT8* servAddr;
 
 	UINT8* encKey;
 	UINT8* decKey;

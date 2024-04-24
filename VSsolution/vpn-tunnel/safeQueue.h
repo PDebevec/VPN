@@ -15,6 +15,7 @@ public:
 
     void push(unsigned char* value, unsigned short size);
     unsigned char* pop(int* len);
+    bool wait();
     bool empty() const;
     size_t size() const;
     void clear();
@@ -22,6 +23,7 @@ public:
 private:
     std::queue<QData> q;
     mutable std::mutex mtx;
+    std::condition_variable cv;
 };
 
 SafeQueue::SafeQueue() {}
@@ -33,10 +35,12 @@ SafeQueue::~SafeQueue() {
 void SafeQueue::push(unsigned char* value, unsigned short size) {
     std::lock_guard<std::mutex> lock(mtx);
     q.push({ value, size });
+    cv.notify_one();
 }
 
 unsigned char* SafeQueue::pop(int* len) {
     std::unique_lock<std::mutex> lock(mtx);
+
     if (q.empty()) {
         *len = NULL;
         return nullptr;
@@ -46,6 +50,13 @@ unsigned char* SafeQueue::pop(int* len) {
     q.pop();
     *len = (int)value.us;
     return value.ucp;
+}
+
+inline bool SafeQueue::wait()
+{
+    std::unique_lock<std::mutex> lock(mtx);
+    cv.wait(lock, [this] { return !q.empty(); });
+    return !q.empty();
 }
 
 bool SafeQueue::empty() const {

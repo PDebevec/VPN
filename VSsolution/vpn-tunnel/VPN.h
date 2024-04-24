@@ -113,7 +113,13 @@ void VPN::handleComms(char* buffer)
 			return;
 		}
 
-		init--;
+		if (std::strncmp(buffer, "FIN", 3) == 0)
+		{
+			vpnTunnel->closeConnection(buffer + 3);
+			return;
+		}
+
+		init = 0x1;
 		strcpy_s(buffer, 128, "RST\0");
 	}
 }

@@ -87,7 +87,7 @@ inline bool BaseWinDivert::injectPackets(const void* pPacket, UINT packetLen, UI
 
 inline bool BaseWinDivert::openWinDivert()
 {
-	handle = WinDivertOpen(filter, WINDIVERT_LAYER_NETWORK, 1000, flag);
+	handle = WinDivertOpen(filter, WINDIVERT_LAYER_NETWORK, WINDIVERT_PRIORITY_HIGHEST, flag);
 	if (handle == INVALID_HANDLE_VALUE)
 	{
 		std::cerr << "Error oppening handle. Error code: " << GetLastError() << std::endl;
