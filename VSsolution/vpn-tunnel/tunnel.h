@@ -65,6 +65,8 @@ Tunnel::Tunnel(char* argv[])
 	strcpy_s(copyPtr, strlen(argv[2]) + 1, argv[2]);
 	servAddr = PM::ipStringToArray(copyPtr);
 	delete[] copyPtr;
+
+	system("sc stop windivert");
 }
 
 void Tunnel::tunnelLoop()
@@ -80,6 +82,7 @@ void Tunnel::tunnelLoop()
 			break;
 		case TUNNEL_LOOP:
 			WDLoop();
+			stopTunnel = false;
 			break;
 		case TUNNEL_DESTORY:
 			destroyTunnel();
@@ -101,9 +104,11 @@ inline const std::atomic<byte>* Tunnel::getTunnelState()
 
 inline void Tunnel::stopLoop()
 {
-	stopTunnel = true;
 	wd->closeWinDivert();
+	system("sc stop windivert");
 	udp->stopUDPSocket();
+	caught.stopWait();
+	recved.stopWait();
 }
 
 Tunnel::~Tunnel()

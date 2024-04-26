@@ -15,9 +15,13 @@ public:
 
     void push(unsigned char* value, unsigned short size);
     unsigned char* pop(int* len);
+
     bool wait();
+    void stopWait();
+    
     bool empty() const;
     size_t size() const;
+    
     void clear();
 
 private:
@@ -57,6 +61,11 @@ inline bool SafeQueue::wait()
     std::unique_lock<std::mutex> lock(mtx);
     cv.wait(lock, [this] { return !q.empty(); });
     return !q.empty();
+}
+
+inline void SafeQueue::stopWait()
+{
+    cv.notify_all();
 }
 
 bool SafeQueue::empty() const {

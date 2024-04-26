@@ -150,14 +150,17 @@ void VPN::pipeLoop()
 inline void VPN::stopVPN()
 {
 	printf("stoping VPN\n");
+
 	comsState = VPN_STOP;
 	comsLoop = false;
 	vpnLoop = false;
+
 	vpnTunnel->stopLoop();
 	if (tunnelT->joinable())
 	{
 		tunnelT->join();
 	}
+
 	delete tunnelT;
 	delete vpnTunnel;
 }

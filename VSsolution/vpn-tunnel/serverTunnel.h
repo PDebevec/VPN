@@ -68,7 +68,6 @@ inline void ServerTunnel::newConnection(char* secondary, char* keys)
 
 		switchState = TUNNEL_INIT;
 	}
-
 }
 
 void ServerTunnel::closeConnection(char* secondary)
@@ -78,6 +77,7 @@ void ServerTunnel::closeConnection(char* secondary)
 
 void ServerTunnel::destroyTunnel()
 {
+	printf("destroying\n");
 	wd->closeWinDivert();
 	udp->stopUDPSocket();
 
@@ -151,6 +151,10 @@ void ServerTunnel::WDLoop() {
 		}
 	}
 
+	stopTunnel = true;
+	caught.stopWait();
+	recved.stopWait();
+	
 	if (injectThread->joinable())
 	{
 		injectThread->join();
@@ -160,6 +164,8 @@ void ServerTunnel::WDLoop() {
 	delete injectAddr;
 	packets.reset();
 	addrs.reset();
+
+	switchState = TUNNEL_DESTORY;
 }
 
 void ServerTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr)
@@ -173,7 +179,7 @@ void ServerTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr)
 	{
 		recved.wait();
 
-		while (!recved.empty())
+		while (!recved.empty() && !stopTunnel)
 		{
 			packet.reset(recved.pop((int*)&recvLen));
 
@@ -282,7 +288,7 @@ void ServerTunnel::UDPLoop() {
 		recved.push(reinterpret_cast<UINT8*>(buffer.release()), recvLen);
 		buffer.reset(new char[WINDIVERT_MTU_MAX]);
 	}
-
+	
 	if (sendThread->joinable())
 	{
 		sendThread->join();
@@ -306,7 +312,7 @@ void ServerTunnel::sendLoop(std::atomic<struct sockaddr*>* from)
 	{
 		caught.wait();
 
-		while (!caught.empty())
+		while (!caught.empty() && !stopTunnel)
 		{
 			buffer.reset(reinterpret_cast<char*>(caught.pop(&recvLen)));
 

@@ -21,7 +21,7 @@ private:
 	void UDPLoop() override;
 	void sendLoop(std::atomic<struct sockaddr*>* from);
 
-	bool letLocalRange(UINT8*);
+	bool letLocalRange(UINT8*) const;
 private:
 	UINT8* secAddr;
 	UINT8* localLow;
@@ -77,6 +77,7 @@ inline void ClientTunnel::newConnection(char* secondary, char* keys)
 
 void ClientTunnel::destroyTunnel()
 {
+	printf("destroying\n");
 	wd->closeWinDivert();
 	udp->stopUDPSocket();
 
@@ -154,6 +155,10 @@ void ClientTunnel::WDLoop()
 		}
 	}
 
+	stopTunnel = true;
+	caught.stopWait();
+	recved.stopWait();
+
 	if (injectThread->joinable())
 	{
 		injectThread->join();
@@ -163,6 +168,8 @@ void ClientTunnel::WDLoop()
 	delete injectAddr;
 	packets.reset();
 	addrs.reset();
+
+	switchState = TUNNEL_DESTORY;
 }
 
 void ClientTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr)
@@ -176,7 +183,7 @@ void ClientTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr)
 	{
 		recved.wait();
 		
-		while (!recved.empty())
+		while (!recved.empty() && !stopTunnel)
 		{
 			packet.reset(recved.pop((int*)&recvLen));
 
@@ -202,7 +209,7 @@ void ClientTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr)
 	decPacket.reset();
 }
 
-bool ClientTunnel::letLocalRange(UINT8* packet)
+bool ClientTunnel::letLocalRange(UINT8* packet) const
 {
 	return memcmp(packet+16, localLow, 4) >= 0 && memcmp(packet+16, localHigh, 4) <= 0;
 }
@@ -252,7 +259,7 @@ void ClientTunnel::sendLoop(std::atomic<struct sockaddr*>* from)
 	{
 		caught.wait();
 
-		while (!caught.empty())
+		while (!caught.empty() && !stopTunnel)
 		{
 			buffer.reset(reinterpret_cast<char*>(caught.pop(&recvLen)));
 
