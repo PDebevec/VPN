@@ -2,7 +2,8 @@
 
 #include <vector>
 #include <functional>
-#include "safeQueue.h"
+//#include "safeQueue.h"
+#include "safeTwoQueue.h"
 #include "UDPSocket.h"
 #include "baseWinDivert.h"
 #include "codes.h"
@@ -47,11 +48,12 @@ protected:
 
 	std::vector<std::thread*> tVec;
 
-	SafeQueue caught;
-	SafeQueue recved;
+	SafeTwoQueue caught;
+	SafeTwoQueue recved;
 };
 
 Tunnel::Tunnel(char* argv[])
+	:caught(WINDIVERT_BATCH_MAX, WINDIVERT_MTU_MAX), recved(WINDIVERT_BATCH_MAX, WINDIVERT_MTU_MAX)
 {
 	arg = argv;
 	tunnelState = INIT_STATE;
@@ -107,17 +109,22 @@ inline void Tunnel::stopLoop()
 	wd->closeWinDivert();
 	system("sc stop windivert");
 	udp->stopUDPSocket();
+
 	caught.stopWait();
 	recved.stopWait();
+
+	switchState = TUNNEL_DESTORY;
 }
 
 Tunnel::~Tunnel()
 {
 	delete udp;
 	delete wd;
+
 	for (auto* t : tVec)
 	{
 		t->join();
 	}
+
 	tVec.clear();
 }

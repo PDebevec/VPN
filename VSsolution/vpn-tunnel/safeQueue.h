@@ -65,7 +65,7 @@ inline bool SafeQueue::wait()
 
 inline void SafeQueue::stopWait()
 {
-    cv.notify_all();
+    cv.notify_one();
 }
 
 bool SafeQueue::empty() const {
