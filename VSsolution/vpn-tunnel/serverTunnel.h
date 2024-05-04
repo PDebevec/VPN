@@ -116,7 +116,6 @@ void ServerTunnel::WDLoop() {
 		{
 			break;
 		}
-
 		packetsCaught = addrLen / sizeof(WINDIVERT_ADDRESS);
 
 		injectAddr->load()->Timestamp = addrs[static_cast<size_t>(packetsCaught) - 1].Timestamp;
@@ -128,12 +127,9 @@ void ServerTunnel::WDLoop() {
 		{
 			singleLen = (packets.get()[2 + nextPacket] << 8) | packets.get()[3 + nextPacket];
 			
-			//if (!addrs[i].Outbound && PM::isDstIP(packets.get() + nextPacket, secAddr))
 			if (PM::isDstIP(packets.get() + nextPacket, secAddr))
 			{
 				caught.push(PM::getSinglePacket(packets.get() + nextPacket, singleLen), singleLen);
-				//caught.push(packet.release(), recvLen);
-				//packet.reset(new UINT8[WINDIVERT_MTU_MAX]);
 			}
 			else
 			{
@@ -154,17 +150,17 @@ void ServerTunnel::WDLoop() {
 	stopTunnel = true;
 	caught.stopWait();
 	recved.stopWait();
-	
-	if (injectThread->joinable())
-	{
-		injectThread->join();
-	}
 
-	delete injectThread;
 	delete injectAddr;
 	packets.reset();
 	addrs.reset();
 
+	if (injectThread->joinable())
+	{
+		injectThread->join();
+	}
+	delete injectThread;
+	
 	switchState = TUNNEL_DESTORY;
 }
 
@@ -172,30 +168,51 @@ void ServerTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr)
 {
 	printf("inject loop\n");
 	std::unique_ptr<UINT8[]> packet(new UINT8[WINDIVERT_MTU_MAX]);
+	std::unique_ptr<UINT8[]> batchPacket(new UINT8[WINDIVERT_MTU_MAX * WINDIVERT_BATCH_MAX]);
 	std::unique_ptr<UINT8[]> decPacket(new UINT8[WINDIVERT_MTU_MAX]);
+	WINDIVERT_ADDRESS* batchAddr = new WINDIVERT_ADDRESS[WINDIVERT_BATCH_MAX];
+	WINDIVERT_ADDRESS temp{};
 	UINT recvLen = NULL;
 
 	while (!stopTunnel)
 	{
+		if (batchAddr[0].Reserved3[0] != injectAddr->load()->Reserved3[0])
+		{
+			temp = *injectAddr->load();
+			for (size_t i = 0; i < WINDIVERT_BATCH_MAX; i++)
+			{
+				batchAddr[i] = temp;
+			}
+		}
+
 		recved.wait();
 
-		while (!recved.empty() && !stopTunnel)
+		UINT packetNum = 0;
+		UINT batchLen = 0;
+
+		while (!recved.empty())
 		{
-			packet.reset(recved.pop((int*)&recvLen));
+			while (!recved.empty() && packetNum < 255)
+			{
+				recved.pop(packet.get(), recvLen);
 
-			PM::aes_decrypt(packet.get(), (int&)recvLen, decKey, decPacket.get(), (int&)recvLen);
-		
-			PM::changePacketSrcIP(decPacket.get(), secAddr);
-		
-			PM::increaseTTL(decPacket.get());
+				packetNum++;
 
-			if (!wd->calcualteIPChecksum(decPacket.get(), recvLen, injectAddr->load())) {
-				printf("ip check sum failed\n");
+				PM::aes_decrypt(packet.get(), (int&)recvLen, decKey, batchPacket.get() + batchLen, (int&)recvLen);
+
+				PM::changePacketSrcIP(batchPacket.get() + batchLen, secAddr);
+
+				PM::increaseTTL(batchPacket.get() + batchLen);
+
+				if (!wd->calcualteIPChecksum(batchPacket.get() + batchLen, recvLen, &batchAddr[packetNum])) {
+					printf("ip check sum failed\n");
+				}
+
+				batchLen += recvLen;
 			}
 
-			if (!wd->sendPacket(decPacket.get(), recvLen, nullptr, injectAddr->load()))
-			{
-				printf("Error injecting recved packet\n");
+			if (!wd->injectPackets(batchPacket.get(), batchLen, NULL, batchAddr, packetNum * sizeof(WINDIVERT_ADDRESS))) {
+				std::cout << GetLastError() << std::endl;
 			}
 		}
 	}
@@ -203,70 +220,6 @@ void ServerTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr)
 	packet.reset();
 	decPacket.reset();
 }
-
-//void ServerTunnel::WDLoop()
-//{
-//	printf("WD loop\n");
-//	std::unique_ptr<UINT8[]> packet(new UINT8[WINDIVERT_MTU_MAX]);
-//	std::unique_ptr<UINT8[]> decPacket(new UINT8[WINDIVERT_MTU_MAX]);
-//	UINT packetSize = WINDIVERT_MTU_MAX;
-//	UINT recvLen = NULL;
-//	UINT sendLen = NULL;
-//	WINDIVERT_ADDRESS addr{};
-//	WINDIVERT_ADDRESS injectAddr{};
-//	injectAddr.Outbound = 1;
-//
-//	while (!stopTunnel)
-//	{
-//		if (!wd->recvPacket(packet.get(), packetSize, &recvLen, &addr))
-//		{
-//			break;
-//		}
-//
-//		injectAddr.Timestamp = addr.Timestamp;
-//
-//		if (!addr.Outbound && PM::isDstIP(packet.get(), secAddr))
-//		{
-//			caught.push(packet.release(), recvLen);
-//			packet.reset(new UINT8[WINDIVERT_MTU_MAX]);
-//		}
-//		else
-//		{
-//			injectAddr.Flow.EndpointId = addr.Flow.EndpointId;
-//			injectAddr.Network.IfIdx = addr.Network.IfIdx;
-//			injectAddr.Reflect.Timestamp = addr.Reflect.Timestamp;
-//			injectAddr.Reserved3[0] = addr.Reserved3[0];
-//			injectAddr.Socket.EndpointId = addr.Socket.EndpointId;
-//
-//			if (!wd->sendPacket(packet.get(), recvLen, &sendLen, &addr)) {
-//				continue;
-//			}
-//		}
-//
-//		while (!recved.empty())
-//		{
-//			packet.reset(recved.pop((int*)&recvLen));
-//
-//			PM::aes_decrypt(packet.get(), (int&)recvLen, decKey, decPacket.get(), (int&)recvLen);
-//
-//			PM::changePacketSrcIP(decPacket.get(), secAddr);
-//
-//			PM::increaseTTL(decPacket.get());
-//
-//			if (!wd->calcualteIPChecksum(decPacket.get(), recvLen, &injectAddr))
-//				continue;
-//
-//			if (!wd->sendPacket(decPacket.get(), recvLen, &sendLen, &injectAddr))
-//			{
-//				printf("Error injecting recved packet\n");
-//			}
-//		}
-//	}
-//
-//	packet.reset();
-//	switchState = TUNNEL_DESTORY;
-//	tunnelState = TUNNEL_DESTORY;
-//}
 
 void ServerTunnel::UDPLoop() {
 	printf("UDP loop\n");
@@ -285,17 +238,17 @@ void ServerTunnel::UDPLoop() {
 			break;
 		}
 
-		recved.push(reinterpret_cast<UINT8*>(buffer.release()), recvLen);
+		recved.push(reinterpret_cast<UINT8*>(buffer.get()), recvLen);
 		buffer.reset(new char[WINDIVERT_MTU_MAX]);
 	}
+
+	buffer.reset();
 	
 	if (sendThread->joinable())
 	{
 		sendThread->join();
 	}
-
 	delete sendThread;
-	buffer.reset();
 }
 
 void ServerTunnel::sendLoop(std::atomic<struct sockaddr*>* from)
@@ -312,9 +265,10 @@ void ServerTunnel::sendLoop(std::atomic<struct sockaddr*>* from)
 	{
 		caught.wait();
 
-		while (!caught.empty() && !stopTunnel)
+		while (!caught.empty())
 		{
-			buffer.reset(reinterpret_cast<char*>(caught.pop(&recvLen)));
+			//buffer.reset(reinterpret_cast<char*>(caught.pop(&recvLen)));
+			caught.pop((UINT8*)buffer.get(), (unsigned int&)recvLen);
 
 			PM::aes_encrypt(reinterpret_cast<UINT8*>(buffer.get()), recvLen, encKey, iv.get(), reinterpret_cast<UINT8*>(encBuffer.get()), recvLen);
 
@@ -329,47 +283,6 @@ void ServerTunnel::sendLoop(std::atomic<struct sockaddr*>* from)
 	encBuffer.reset();
 	iv.reset();
 }
-
-//void ServerTunnel::UDPLoop()
-//{
-//	printf("UDP loop\n");
-//	std::unique_ptr<char[]> buffer(new char[WINDIVERT_MTU_MAX]);
-//	std::unique_ptr<char[]> encBuffer(new char[WINDIVERT_MTU_MAX]);
-//	std::unique_ptr<UINT8[]> iv(new UINT8[AES_BLOCK_SIZE]);
-//	int bufferSize = WINDIVERT_MTU_MAX;
-//	int sendLen = NULL;
-//	int recvLen = NULL;
-//	struct sockaddr_in from {};
-//	int fromLen = sizeof(sockaddr_in);
-//
-//	while (!stopTunnel)
-//	{
-//		if (!udp->recvBufferFrom(buffer.get(), bufferSize, reinterpret_cast<struct sockaddr*>(&from), &fromLen, recvLen))
-//		{
-//			break;
-//		}
-//		else if (recvLen > 0) {
-//			recved.push(reinterpret_cast<UINT8*>(buffer.release()), recvLen);
-//			buffer.reset(new char[WINDIVERT_MTU_MAX]);
-//		}
-//		
-//		while (!caught.empty())
-//		{
-//			buffer.reset(reinterpret_cast<char*>(caught.pop(&recvLen)));
-//
-//			PM::aes_encrypt(reinterpret_cast<UINT8*>(buffer.get()), recvLen, encKey, iv.get(), reinterpret_cast<UINT8*>(encBuffer.get()), recvLen);
-//
-//			if (!udp->sendBufferTo(encBuffer.get(), recvLen, reinterpret_cast<sockaddr*>(&from), fromLen, sendLen))
-//			{
-//				std::cerr << WSAGetLastError() << ":" << recvLen << ":" << recvLen - 16 << std::endl;
-//			}
-//		}
-//	}
-//
-//	buffer.reset();
-//	switchState = TUNNEL_DESTORY;
-//	tunnelState = TUNNEL_DESTORY;
-//}
 
 ServerTunnel::~ServerTunnel()
 {

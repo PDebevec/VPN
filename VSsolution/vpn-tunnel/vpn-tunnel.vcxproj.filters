@@ -70,5 +70,8 @@
     <ClInclude Include="UDPSocket.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="safeTwoQueue.h">
+      <Filter>Header Files\Base</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

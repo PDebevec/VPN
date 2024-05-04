@@ -137,9 +137,9 @@ namespace PM {
         }
         ciphertextLen += len;
 
-        std::memcpy(ciphertext + ciphertextLen, iv, 16);
+        std::memcpy(ciphertext + ciphertextLen, iv, AES_BLOCK_SIZE);
 
-        ciphertextLen += 16;
+        ciphertextLen += AES_BLOCK_SIZE;
 
         EVP_CIPHER_CTX_free(ctx);
     }
@@ -153,13 +153,13 @@ namespace PM {
             return;
         }
 
-        if (1 != EVP_DecryptInit_ex(ctx, EVP_aes_256_ctr(), NULL, key, ciphertext + ciphertextLen - 16)) {
+        if (1 != EVP_DecryptInit_ex(ctx, EVP_aes_256_ctr(), NULL, key, ciphertext + ciphertextLen - AES_BLOCK_SIZE)) {
             std::cerr << "Error: EVP_DecryptInit_ex() failed" << std::endl;
             EVP_CIPHER_CTX_free(ctx);
             return;
         }
 
-        if (1 != EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertextLen - 16)) {
+        if (1 != EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertextLen - AES_BLOCK_SIZE)) {
             std::cerr << "Error: EVP_DecryptUpdate() failed" << std::endl;
             EVP_CIPHER_CTX_free(ctx);
             return;
