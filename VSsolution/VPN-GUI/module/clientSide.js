@@ -56,6 +56,7 @@ function connectHTTPS(data) {
                         });
 
                         wss.on('close', () => {
+                            emitter.emit('client-comms', {action:'close-tunnel'})
                             console.log('disconnected');
                         });
 

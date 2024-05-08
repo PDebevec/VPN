@@ -79,7 +79,7 @@ inline bool BaseWinDivert::injectPackets(const void* pPacket, UINT packetLen, UI
 {
 	if (!WinDivertSendEx(handle, pPacket, packetLen, sendLen, 0, pAddr, pAddrLen, NULL))
 	{
-		std::cerr << "Error catching packets. WD error code: " << GetLastError() << std::endl;
+		std::cerr << "Error injecting packets. WD error code: " << GetLastError() << std::endl;
 		return false;
 	}
 	return true;
@@ -87,6 +87,8 @@ inline bool BaseWinDivert::injectPackets(const void* pPacket, UINT packetLen, UI
 
 inline bool BaseWinDivert::openWinDivert()
 {
+	system("sc stop windivert");
+
 	handle = WinDivertOpen(filter, WINDIVERT_LAYER_NETWORK, WINDIVERT_PRIORITY_HIGHEST, flag);
 	if (handle == INVALID_HANDLE_VALUE)
 	{

@@ -22,8 +22,6 @@ public:
 
 	bool recvBufferFrom(char* buf, int len, sockaddr* from, int* fromLen, int& recvLen);
 	bool sendBufferTo(char* buf, int len, sockaddr* to, int toLen, int& sendLen);
-	bool safeRecvBufferFrom(char* buf, int len, sockaddr* from, int* fromLen, int& recvLen);
-	bool safeSendBufferTo(char* buf, int len, sockaddr* to, int toLen, int& sendLen);
 
 	void stopUDPSocket();
 
@@ -115,40 +113,6 @@ bool UDPSocket::recvBufferFrom(char* buf, int len, sockaddr* from, int* fromLen,
 bool UDPSocket::sendBufferTo(char* buf, int len, sockaddr* to, int toLen, int& sendLen)
 {
 	sendLen = sendto(soc, buf, len, 0, to, toLen);
-	switch (sendLen)
-	{
-	case 0:
-		return false;
-	case SOCKET_ERROR:
-		std::cout << "Error sending UDP data to socket. WSA error code: " << WSAGetLastError() << std::endl;
-		return false;
-	default:
-		return true;
-	}
-}
-
-bool UDPSocket::safeRecvBufferFrom(char* buf, int len, sockaddr* from, int* fromLen, int& recvLen)
-{
-	mtx.lock();
-	recvLen = recvfrom(soc, buf, len, 0, reinterpret_cast<sockaddr*>(from), fromLen);
-	mtx.unlock();
-	switch (recvLen)
-	{
-	case 0:
-		return false;
-	case SOCKET_ERROR:
-		std::cout << "Error recving UDP data from socket. WSA error code: " << WSAGetLastError() << std::endl;
-		return false;
-	default:
-		return true;
-	}
-}
-
-bool UDPSocket::safeSendBufferTo(char* buf, int len, sockaddr* to, int toLen, int& sendLen)
-{
-	mtx.lock();
-	sendLen = sendto(soc, buf, len, 0, to, toLen);
-	mtx.unlock();
 	switch (sendLen)
 	{
 	case 0:

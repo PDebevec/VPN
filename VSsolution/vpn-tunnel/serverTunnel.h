@@ -24,26 +24,34 @@ private:
 	void sendLoop(std::atomic<struct sockaddr*>* from);
 private:
 	UINT8* secAddr;
+
+	bool stopServer;
 };
 
 ServerTunnel::ServerTunnel(char* argv[])
 	:Tunnel(argv)
 {
 	secAddr = nullptr;
+	stopServer = true;
 }
 
 void ServerTunnel::initTunnel()
 {
 	printf("tunnel init\n");
-	udp = new UDPSocket(arg);
-	wd = new BaseWinDivert("inbound and !loopback and !icmp", 0); //WINDIVERT_FLAG_SNIFF
+	if (udp == nullptr && wd == nullptr)
+	{
+		udp = new UDPSocket(arg);
+		wd = new BaseWinDivert("inbound and !loopback and ip.SrcAddr != 0.0.0.0", 0); //WINDIVERT_FLAG_SNIFF
+	}
 
 	udp->initUDPServer();
 
 	if (*udp->getUDPState() != UDP_INITIALIZED)
 		throw "Erorr initializing UDP socket!";
 
-	tVec.push_back(new std::thread(&ServerTunnel::UDPLoop, this));
+	stopServer = false;
+
+	//tVec.push_back(new std::thread(&ServerTunnel::UDPLoop, this));
 
 	wd->openWinDivert();
 
@@ -58,6 +66,7 @@ inline void ServerTunnel::newConnection(char* secondary, char* keys)
 {
 	if (switchState != TUNNEL_LOOP)
 	{
+		printf("keys and ip\n");
 		secAddr = PM::ipStringToArray(secondary);
 
 		decKey = new UINT8[32];
@@ -67,12 +76,18 @@ inline void ServerTunnel::newConnection(char* secondary, char* keys)
 		std::memcpy(encKey, keys + 32, 32);
 
 		switchState = TUNNEL_INIT;
+		stopServer = false;
 	}
 }
 
 void ServerTunnel::closeConnection(char* secondary)
 {
-	std::cout << secondary << std::endl;
+	printf("user disconnected\n");
+	stopServer = true;
+	wd->closeWinDivert();
+	udp->stopUDPSocket();
+	recved.stopWait();
+	caught.stopWait();
 }
 
 void ServerTunnel::destroyTunnel()
@@ -81,20 +96,25 @@ void ServerTunnel::destroyTunnel()
 	wd->closeWinDivert();
 	udp->stopUDPSocket();
 
-	for (auto *t : tVec)
+	for (std::thread* t : tVec)
 	{
 		if (t->joinable())
 		{
 			t->join();
+			delete t;
 		}
-		delete t;
 	}
 	tVec.clear();
+	printf("threads closed\n");
 
-	udp->initUDPServer();
+	delete encKey;
+	delete decKey;
+
+	recved.restart();
+	caught.restart();
 
 	tunnelState = TUNNEL_INITIALIZED;
-	switchState = TUNNEL_CONNECT;
+	switchState = INIT_STATE;
 }
 
 void ServerTunnel::WDLoop() {
@@ -110,7 +130,7 @@ void ServerTunnel::WDLoop() {
 
 	std::thread* injectThread = new std::thread(std::bind(&ServerTunnel::injectLoop, this, injectAddr));
 
-	while (!stopTunnel)
+	while (!stopServer)
 	{
 		if (!wd->catchPackets(packets.get(), packetLen, &recvLen, addrs.get(), &addrLen))
 		{
@@ -126,7 +146,10 @@ void ServerTunnel::WDLoop() {
 		for (size_t i = 0; i < packetsCaught; i++)
 		{
 			singleLen = (packets.get()[2 + nextPacket] << 8) | packets.get()[3 + nextPacket];
-			
+			if (singleLen == 0)
+			{
+				PM::displayIPv4HeaderInfo(packets.get() + nextPacket);
+			}
 			if (PM::isDstIP(packets.get() + nextPacket, secAddr))
 			{
 				caught.push(PM::getSinglePacket(packets.get() + nextPacket, singleLen), singleLen);
@@ -140,6 +163,7 @@ void ServerTunnel::WDLoop() {
 				injectAddr->load()->Socket.EndpointId = addrs[i].Socket.EndpointId;
 
 				if (!wd->sendPacket(packets.get() + nextPacket, singleLen, nullptr, &addrs[i])) {
+					std::cout << nextPacket << " " << singleLen << std::endl;
 				}
 			}
 
@@ -147,11 +171,9 @@ void ServerTunnel::WDLoop() {
 		}
 	}
 
-	stopTunnel = true;
-	caught.stopWait();
+	stopServer = true;
 	recved.stopWait();
 
-	delete injectAddr;
 	packets.reset();
 	addrs.reset();
 
@@ -159,9 +181,11 @@ void ServerTunnel::WDLoop() {
 	{
 		injectThread->join();
 	}
+
 	delete injectThread;
-	
-	switchState = TUNNEL_DESTORY;
+	delete injectAddr;
+
+	//switchState = TUNNEL_DESTORY;
 }
 
 void ServerTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr)
@@ -174,7 +198,7 @@ void ServerTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr)
 	WINDIVERT_ADDRESS temp{};
 	UINT recvLen = NULL;
 
-	while (!stopTunnel)
+	while (!stopServer)
 	{
 		if (batchAddr[0].Reserved3[0] != injectAddr->load()->Reserved3[0])
 		{
@@ -185,17 +209,13 @@ void ServerTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr)
 			}
 		}
 
-		recved.wait();
-
 		UINT packetNum = 0;
 		UINT batchLen = 0;
 
 		while (!recved.empty())
 		{
-			while (!recved.empty() && packetNum < 255)
-			{
+			do {
 				recved.pop(packet.get(), recvLen);
-
 				packetNum++;
 
 				PM::aes_decrypt(packet.get(), (int&)recvLen, decKey, batchPacket.get() + batchLen, (int&)recvLen);
@@ -205,20 +225,24 @@ void ServerTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr)
 				PM::increaseTTL(batchPacket.get() + batchLen);
 
 				if (!wd->calcualteIPChecksum(batchPacket.get() + batchLen, recvLen, &batchAddr[packetNum])) {
-					printf("ip check sum failed\n");
 				}
 
 				batchLen += recvLen;
-			}
+			} while (!recved.empty() && packetNum < 255);
 
 			if (!wd->injectPackets(batchPacket.get(), batchLen, NULL, batchAddr, packetNum * sizeof(WINDIVERT_ADDRESS))) {
-				std::cout << GetLastError() << std::endl;
 			}
+
+			packetNum = 0;
+			batchLen = 0;
 		}
+
+		recved.wait();
 	}
 
 	packet.reset();
 	decPacket.reset();
+	batchPacket.reset();
 }
 
 void ServerTunnel::UDPLoop() {
@@ -231,7 +255,7 @@ void ServerTunnel::UDPLoop() {
 
 	std::thread* sendThread = new std::thread(std::bind(&ServerTunnel::sendLoop, this, from));
 
-	while (!stopTunnel)
+	while (!stopServer)
 	{
 		if (!udp->recvBufferFrom(buffer.get(), bufferSize, from->load(), &fromLen, recvLen))
 		{
@@ -241,6 +265,9 @@ void ServerTunnel::UDPLoop() {
 		recved.push(reinterpret_cast<UINT8*>(buffer.get()), recvLen);
 		buffer.reset(new char[WINDIVERT_MTU_MAX]);
 	}
+
+	stopServer = true;
+	caught.stopWait();
 
 	buffer.reset();
 	
@@ -261,13 +288,12 @@ void ServerTunnel::sendLoop(std::atomic<struct sockaddr*>* from)
 	int fromLen = sizeof(sockaddr_in);
 	int sendLen = NULL;
 
-	while (!stopTunnel)
+	while (!stopServer)
 	{
 		caught.wait();
 
 		while (!caught.empty())
 		{
-			//buffer.reset(reinterpret_cast<char*>(caught.pop(&recvLen)));
 			caught.pop((UINT8*)buffer.get(), (unsigned int&)recvLen);
 
 			PM::aes_encrypt(reinterpret_cast<UINT8*>(buffer.get()), recvLen, encKey, iv.get(), reinterpret_cast<UINT8*>(encBuffer.get()), recvLen);
@@ -286,4 +312,5 @@ void ServerTunnel::sendLoop(std::atomic<struct sockaddr*>* from)
 
 ServerTunnel::~ServerTunnel()
 {
+	delete[] secAddr;
 }

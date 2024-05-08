@@ -2,7 +2,6 @@
 
 #include <vector>
 #include <functional>
-//#include "safeQueue.h"
 #include "safeTwoQueue.h"
 #include "UDPSocket.h"
 #include "baseWinDivert.h"
@@ -26,6 +25,8 @@ public:
 private:
 	virtual void initTunnel() {};
 	virtual void destroyTunnel() {};
+
+	void threadLoop();
 
 	virtual void WDLoop() {};
 	
@@ -67,8 +68,6 @@ Tunnel::Tunnel(char* argv[])
 	strcpy_s(copyPtr, strlen(argv[2]) + 1, argv[2]);
 	servAddr = PM::ipStringToArray(copyPtr);
 	delete[] copyPtr;
-
-	system("sc stop windivert");
 }
 
 void Tunnel::tunnelLoop()
@@ -83,8 +82,7 @@ void Tunnel::tunnelLoop()
 			initTunnel();
 			break;
 		case TUNNEL_LOOP:
-			WDLoop();
-			stopTunnel = false;
+			threadLoop();
 			break;
 		case TUNNEL_DESTORY:
 			destroyTunnel();
@@ -97,6 +95,23 @@ void Tunnel::tunnelLoop()
 	stopTunnel = true;
 	switchState = TUNNEL_DESTORY;
 	tunnelState = TUNNEL_STOP;
+}
+
+void Tunnel::threadLoop()
+{
+	unsigned int threadCount = std::thread::hardware_concurrency();
+
+	if (threadCount > 3)
+	{
+		tVec.push_back(new std::thread(&Tunnel::WDLoop, this));
+		tVec.push_back(new std::thread(&Tunnel::UDPLoop, this));
+	}
+
+	tVec.push_back(new std::thread(&Tunnel::UDPLoop, this));
+
+	WDLoop();
+	printf("end of thread loop\n");
+	switchState = TUNNEL_DESTORY;
 }
 
 inline const std::atomic<byte>* Tunnel::getTunnelState()

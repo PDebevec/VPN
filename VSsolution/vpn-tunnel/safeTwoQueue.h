@@ -16,6 +16,8 @@ public:
 	void wait();
 	void stopWait();
 
+	void restart();
+
 	void push(unsigned char*, unsigned int);
 	void pop(unsigned char*, unsigned int&);
 
@@ -37,6 +39,7 @@ private:
 	QData* tempPop;
 
 	unsigned int bufferLen;
+	bool noWait;
 };
 
 SafeTwoQueue::SafeTwoQueue(size_t q1Size, unsigned int bufferSize)
@@ -44,6 +47,8 @@ SafeTwoQueue::SafeTwoQueue(size_t q1Size, unsigned int bufferSize)
 {
 	tempPush = nullptr;
 	tempPop = nullptr;
+
+	noWait = false;
 
 	for (size_t i = 0; i < q1Size; i++)
 	{
@@ -54,12 +59,26 @@ SafeTwoQueue::SafeTwoQueue(size_t q1Size, unsigned int bufferSize)
 inline void SafeTwoQueue::wait()
 {
 	std::unique_lock<std::mutex> lock(mtx);
-	cv.wait(lock, [this] { return !q2.empty(); });
+	cv.wait(lock, [this] { return !q2.empty() || noWait; });
 }
 
 inline void SafeTwoQueue::stopWait()
 {
-	cv.notify_one();
+	{
+		std::lock_guard<std::mutex> lock(mtx);
+		noWait = true;
+	}
+	cv.notify_all();
+}
+
+inline void SafeTwoQueue::restart()
+{
+	noWait = false;
+	while (!q2.empty())
+	{
+		delete[] q2.front();
+		q2.pop();
+	}
 }
 
 void SafeTwoQueue::push(unsigned char* data, unsigned int dataSize)
@@ -78,7 +97,7 @@ void SafeTwoQueue::push(unsigned char* data, unsigned int dataSize)
 
 	q2.push(tempPush);
 
-	cv.notify_one();
+	cv.notify_all();
 }
 
 void SafeTwoQueue::pop(unsigned char* data, unsigned int& dataLen)
@@ -86,7 +105,11 @@ void SafeTwoQueue::pop(unsigned char* data, unsigned int& dataLen)
 	std::unique_lock<std::mutex> lock(mtx);
 	if (q2.empty())
 	{
-		cv.wait(lock, [this] { return !q2.empty(); });
+		cv.wait(lock, [this] { return !q2.empty() || noWait; });
+		if (noWait)
+		{
+			return;
+		}
 	}
 
 	tempPop = q2.front();
