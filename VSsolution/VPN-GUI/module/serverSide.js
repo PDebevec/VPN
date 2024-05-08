@@ -149,7 +149,7 @@ function POSTencryption(req, res) {
     }
 
     users[req.params.user].encryption = decrypted.substring(0, 128)
-    users[req.params.user].secondary = secondaryIPs.shift()
+    users[req.params.user].secondary = secondaryIPs[0]
 
     emitter.emit('pipe-comms', {
         action: 'tunnel-user',
