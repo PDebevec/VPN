@@ -38,8 +38,11 @@ ServerTunnel::ServerTunnel(char* argv[])
 void ServerTunnel::initTunnel()
 {
 	printf("tunnel init\n");
-	udp = new UDPSocket(arg);
-	wd = new BaseWinDivert("inbound and !loopback and ip.SrcAddr != 0.0.0.0", 0); //WINDIVERT_FLAG_SNIFF
+	if (udp == nullptr && wd == nullptr)
+	{
+		udp = new UDPSocket(arg);
+		wd = new BaseWinDivert("inbound and !loopback and ip.SrcAddr != 0.0.0.0", 0); //WINDIVERT_FLAG_SNIFF
+	}
 
 	udp->initUDPServer();
 
@@ -63,6 +66,7 @@ inline void ServerTunnel::newConnection(char* secondary, char* keys)
 {
 	if (switchState != TUNNEL_LOOP)
 	{
+		printf("keys and ip\n");
 		secAddr = PM::ipStringToArray(secondary);
 
 		decKey = new UINT8[32];
@@ -72,12 +76,18 @@ inline void ServerTunnel::newConnection(char* secondary, char* keys)
 		std::memcpy(encKey, keys + 32, 32);
 
 		switchState = TUNNEL_INIT;
+		stopServer = false;
 	}
 }
 
 void ServerTunnel::closeConnection(char* secondary)
 {
-	std::cout << secondary << std::endl;
+	printf("user disconnected\n");
+	stopServer = true;
+	wd->closeWinDivert();
+	udp->stopUDPSocket();
+	recved.stopWait();
+	caught.stopWait();
 }
 
 void ServerTunnel::destroyTunnel()
@@ -86,20 +96,25 @@ void ServerTunnel::destroyTunnel()
 	wd->closeWinDivert();
 	udp->stopUDPSocket();
 
-	for (auto *t : tVec)
+	for (std::thread* t : tVec)
 	{
 		if (t->joinable())
 		{
 			t->join();
+			delete t;
 		}
-		delete t;
 	}
 	tVec.clear();
+	printf("threads closed\n");
 
-	udp->initUDPServer();
+	delete encKey;
+	delete decKey;
+
+	recved.restart();
+	caught.restart();
 
 	tunnelState = TUNNEL_INITIALIZED;
-	switchState = TUNNEL_CONNECT;
+	switchState = INIT_STATE;
 }
 
 void ServerTunnel::WDLoop() {
@@ -157,10 +172,8 @@ void ServerTunnel::WDLoop() {
 	}
 
 	stopServer = true;
-	caught.stopWait();
 	recved.stopWait();
 
-	delete injectAddr;
 	packets.reset();
 	addrs.reset();
 
@@ -168,9 +181,11 @@ void ServerTunnel::WDLoop() {
 	{
 		injectThread->join();
 	}
+
 	delete injectThread;
-	
-	switchState = TUNNEL_DESTORY;
+	delete injectAddr;
+
+	//switchState = TUNNEL_DESTORY;
 }
 
 void ServerTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr)
@@ -210,7 +225,6 @@ void ServerTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr)
 				PM::increaseTTL(batchPacket.get() + batchLen);
 
 				if (!wd->calcualteIPChecksum(batchPacket.get() + batchLen, recvLen, &batchAddr[packetNum])) {
-					printf("ip checksum failed\n");
 				}
 
 				batchLen += recvLen;
@@ -228,6 +242,7 @@ void ServerTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr)
 
 	packet.reset();
 	decPacket.reset();
+	batchPacket.reset();
 }
 
 void ServerTunnel::UDPLoop() {
@@ -250,6 +265,9 @@ void ServerTunnel::UDPLoop() {
 		recved.push(reinterpret_cast<UINT8*>(buffer.get()), recvLen);
 		buffer.reset(new char[WINDIVERT_MTU_MAX]);
 	}
+
+	stopServer = true;
+	caught.stopWait();
 
 	buffer.reset();
 	

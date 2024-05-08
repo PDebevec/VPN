@@ -86,6 +86,9 @@ void ClientTunnel::destroyTunnel()
 	wd->closeWinDivert();
 	udp->stopUDPSocket();
 
+	stopTunnel = true;
+	stopClient = true;
+
 	for (auto *t : tVec)
 	{
 		if (t->joinable())
@@ -99,8 +102,6 @@ void ClientTunnel::destroyTunnel()
 	recved.clear();
 	caught.clear();
 
-	stopTunnel = true;
-	stopClient = true;
 	switchState = TUNNEL_STOP;
 	tunnelState = TUNNEL_STOP;
 }
@@ -144,7 +145,6 @@ void ClientTunnel::WDLoop()
 			if (addrs[i].IPv6)
 			{
 			}
-			//else if (addrs[i].Outbound && (PM::isLocalPacket(packets.get() + nextPacket) == letLocalRange(packets.get() + nextPacket)))
 			else if (PM::isLocalPacket(packets.get() + nextPacket) == letLocalRange(packets.get() + nextPacket))
 			{
 				caught.push(PM::getSinglePacket(packets.get() + nextPacket, singleLen), singleLen);
@@ -169,7 +169,6 @@ void ClientTunnel::WDLoop()
 	caught.stopWait();
 	recved.stopWait();
 
-	delete injectAddr;
 	packets.reset();
 	addrs.reset();
 
@@ -178,6 +177,7 @@ void ClientTunnel::WDLoop()
 		injectThread->join();
 	}
 	delete injectThread;
+	delete injectAddr;
 
 	switchState = TUNNEL_DESTORY;
 }

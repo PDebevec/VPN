@@ -110,15 +110,7 @@ void Tunnel::threadLoop()
 	tVec.push_back(new std::thread(&Tunnel::UDPLoop, this));
 
 	WDLoop();
-
-	for (std::thread* t : tVec)
-	{
-		if (t->joinable())
-		{
-			t->join();
-		}
-	}
-
+	printf("end of thread loop\n");
 	switchState = TUNNEL_DESTORY;
 }
 
