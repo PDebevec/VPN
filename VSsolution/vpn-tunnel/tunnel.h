@@ -2,7 +2,7 @@
 
 #include <vector>
 #include <functional>
-#include "safeTwoQueue.h"
+#include "circularBuffer.h"
 #include "UDPSocket.h"
 #include "baseWinDivert.h"
 #include "codes.h"
@@ -28,9 +28,9 @@ private:
 
 	void threadLoop();
 
-	virtual void WDLoop() {};
+	virtual void WDLoop(CicrularBuffer*, CicrularBuffer*) {};
 	
-	virtual void UDPLoop() {};
+	virtual void UDPLoop(CicrularBuffer*, CicrularBuffer*) {};
 
 protected:
 	char** arg;
@@ -49,12 +49,12 @@ protected:
 
 	std::vector<std::thread*> tVec;
 
-	SafeTwoQueue caught;
-	SafeTwoQueue recved;
+	//SafeTwoQueue caught;
+	//SafeTwoQueue recved;
 };
 
 Tunnel::Tunnel(char* argv[])
-	:caught(WINDIVERT_BATCH_MAX, WINDIVERT_MTU_MAX), recved(WINDIVERT_BATCH_MAX, WINDIVERT_MTU_MAX)
+	//:caught(WINDIVERT_BATCH_MAX, WINDIVERT_MTU_MAX), recved(WINDIVERT_BATCH_MAX, WINDIVERT_MTU_MAX)
 {
 	arg = argv;
 	tunnelState = INIT_STATE;
@@ -103,13 +103,18 @@ void Tunnel::threadLoop()
 
 	if (threadCount > 3)
 	{
-		tVec.push_back(new std::thread(&Tunnel::WDLoop, this));
-		tVec.push_back(new std::thread(&Tunnel::UDPLoop, this));
+		CicrularBuffer* t1c = new CicrularBuffer(WINDIVERT_BATCH_MAX, WINDIVERT_MTU_MAX);
+		CicrularBuffer* t1r = new CicrularBuffer(WINDIVERT_BATCH_MAX, WINDIVERT_MTU_MAX);
+		tVec.push_back(new std::thread(std::bind(&Tunnel::UDPLoop, this, t1c, t1r)));
+		tVec.push_back(new std::thread(std::bind(&Tunnel::WDLoop, this, t1c, t1r)));
 	}
 
-	tVec.push_back(new std::thread(&Tunnel::UDPLoop, this));
+	CicrularBuffer* t2c = new CicrularBuffer(WINDIVERT_BATCH_MAX, WINDIVERT_MTU_MAX);
+	CicrularBuffer* t2r = new CicrularBuffer(WINDIVERT_BATCH_MAX, WINDIVERT_MTU_MAX);
+	tVec.push_back(new std::thread(std::bind(&Tunnel::UDPLoop, this, t2c, t2r)));
 
-	WDLoop();
+	WDLoop(t2c, t2r);
+
 	printf("end of thread loop\n");
 	switchState = TUNNEL_DESTORY;
 }
@@ -124,9 +129,6 @@ inline void Tunnel::stopLoop()
 	wd->closeWinDivert();
 	system("sc stop windivert");
 	udp->stopUDPSocket();
-
-	caught.stopWait();
-	recved.stopWait();
 
 	switchState = TUNNEL_DESTORY;
 }
