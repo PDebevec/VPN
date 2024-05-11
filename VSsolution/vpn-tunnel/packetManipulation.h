@@ -100,7 +100,7 @@ namespace PM {
     }
 
     void increaseTTL(unsigned char* packet) {
-        packet[8] += 8;
+        packet[8] = 128;
     }
 
     void aes_encrypt(UINT8* plaintext, int& plaintextLen, const UINT8* key, UINT8* iv, UINT8* ciphertext, int& ciphertextLen) {

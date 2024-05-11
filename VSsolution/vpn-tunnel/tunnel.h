@@ -8,6 +8,8 @@
 #include "codes.h"
 #include "packetManipulation.h"
 
+constexpr unsigned short TUNNEL_BATCH_SIZE = 128;
+constexpr unsigned short TUNNEL_MTU_SIZE = 1500 * 2 + 40;
 
 class Tunnel
 {
@@ -48,13 +50,9 @@ protected:
 	std::atomic<byte> tunnelState;
 
 	std::vector<std::thread*> tVec;
-
-	//SafeTwoQueue caught;
-	//SafeTwoQueue recved;
 };
 
 Tunnel::Tunnel(char* argv[])
-	//:caught(WINDIVERT_BATCH_MAX, WINDIVERT_MTU_MAX), recved(WINDIVERT_BATCH_MAX, WINDIVERT_MTU_MAX)
 {
 	arg = argv;
 	tunnelState = INIT_STATE;
@@ -103,19 +101,18 @@ void Tunnel::threadLoop()
 
 	if (threadCount > 3)
 	{
-		CicrularBuffer* t1c = new CicrularBuffer(WINDIVERT_BATCH_MAX, WINDIVERT_MTU_MAX);
-		CicrularBuffer* t1r = new CicrularBuffer(WINDIVERT_BATCH_MAX, WINDIVERT_MTU_MAX);
+		CicrularBuffer* t1c = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
+		CicrularBuffer* t1r = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
 		tVec.push_back(new std::thread(std::bind(&Tunnel::UDPLoop, this, t1c, t1r)));
 		tVec.push_back(new std::thread(std::bind(&Tunnel::WDLoop, this, t1c, t1r)));
 	}
 
-	CicrularBuffer* t2c = new CicrularBuffer(WINDIVERT_BATCH_MAX, WINDIVERT_MTU_MAX);
-	CicrularBuffer* t2r = new CicrularBuffer(WINDIVERT_BATCH_MAX, WINDIVERT_MTU_MAX);
+	CicrularBuffer* t2c = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
+	CicrularBuffer* t2r = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
 	tVec.push_back(new std::thread(std::bind(&Tunnel::UDPLoop, this, t2c, t2r)));
 
 	WDLoop(t2c, t2r);
 
-	printf("end of thread loop\n");
 	switchState = TUNNEL_DESTORY;
 }
 
