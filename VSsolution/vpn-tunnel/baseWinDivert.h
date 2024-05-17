@@ -57,8 +57,7 @@ inline bool BaseWinDivert::sendPacket(const void* pPacket, UINT packetLen, UINT*
 
 inline bool BaseWinDivert::calcualteIPChecksum(void* pPacket, UINT packetLen, WINDIVERT_ADDRESS* pAddr)
 {
-	if (WinDivertHelperCalcChecksums(pPacket, packetLen, pAddr,
-		WINDIVERT_HELPER_NO_ICMP_CHECKSUM || WINDIVERT_HELPER_NO_ICMPV6_CHECKSUM) == FALSE) {
+	if (WinDivertHelperCalcChecksums(pPacket, packetLen, pAddr, WINDIVERT_HELPER_NO_ICMPV6_CHECKSUM) == FALSE) {
 		std::cerr << "Faild to calcualte checksum! WD error code: " << GetLastError() << std::endl;
 		return false;
 	}

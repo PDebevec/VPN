@@ -24,21 +24,23 @@ public:
 
     ~CicrularBuffer();
 
-    size_t size;
+private:
+    void resize();
+
 private:
     std::unique_ptr<QData[]> buffer;
     size_t capacity;
     size_t mask;
     size_t head;
     size_t tail;
+    size_t size;
     unsigned int bufferLen;
 
     mutable std::mutex mtx;
+    mutable std::mutex resizeMtx;
     std::condition_variable cv;
 
     bool noWait;
-
-    void resize();
 };
 
 CicrularBuffer::CicrularBuffer(size_t capacity, unsigned int bufferLen)
@@ -65,22 +67,28 @@ void CicrularBuffer::wait() {
 }
 
 void CicrularBuffer::stopWait() {
-    std::lock_guard<std::mutex> lock(mtx);
-    noWait = true;
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        noWait = true;
+    }
     cv.notify_all();
 }
 
 void CicrularBuffer::push(unsigned char* data, unsigned int dataSize) {
-    std::lock_guard<std::mutex> lock(mtx);
-    if (size == capacity) {
-        resize();
+    {
+        std::unique_lock<std::mutex> resizeLock(resizeMtx, std::defer_lock);
+        std::lock_guard<std::mutex> lock(mtx);
+        if (size == capacity) {
+            resizeLock.lock();
+            resize();
+        }
+
+        std::memcpy(buffer[tail].ucp, data, dataSize);
+        buffer[tail].us = dataSize;
+
+        tail = (tail + 1) & mask;
+        ++size;
     }
-
-    std::memcpy(buffer[tail].ucp, data, dataSize);
-    buffer[tail].us = dataSize;
-
-    tail = (tail + 1) & mask;
-    ++size;
     cv.notify_all();
 }
 

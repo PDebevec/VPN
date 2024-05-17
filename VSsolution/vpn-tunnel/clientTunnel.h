@@ -44,7 +44,7 @@ void ClientTunnel::initTunnel()
 	printf("tunnel init\n");
 	udp = new UDPSocket(arg);
 
-	std::string temp = "outbound and !loopback and remoteAddr != ";
+	std::string temp = "outbound and !loopback and !impostor and remoteAddr != ";
 	temp += arg[2];
 
 	wd = new BaseWinDivert(temp.c_str(), 0);
@@ -141,10 +141,25 @@ void ClientTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 
 			if (addrs[i].IPv6)
 			{
+				std::memmove(packets.get() + nextPacket, packets.get() + nextPacket + singleLen, recvLen - nextPacket - singleLen);
+
+				std::memmove(&addrs[i], &addrs[i + 1], (packetsCaught - i - 1) * sizeof(WINDIVERT_ADDRESS));
+
+				packetsCaught--;
+				recvLen -= singleLen;
+				continue;
 			}
 			else if (PM::isLocalPacket(packets.get() + nextPacket) == letLocalRange(packets.get() + nextPacket))
 			{
 				caught->push(packets.get() + nextPacket, singleLen);
+
+				std::memmove(packets.get() + nextPacket, packets.get() + nextPacket + singleLen, recvLen - nextPacket - singleLen);
+
+				std::memmove(&addrs[i], &addrs[i + 1], (packetsCaught - i - 1) * sizeof(WINDIVERT_ADDRESS));
+
+				packetsCaught--;
+				recvLen -= singleLen;
+				continue;
 			}
 			else
 			{
@@ -154,13 +169,18 @@ void ClientTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 				temp.Reserved3[0] = addrs[i].Reserved3[0];
 				temp.Socket.EndpointId = addrs[i].Socket.EndpointId;
 
-				wd->sendPacket(packets.get() + nextPacket, singleLen, nullptr, &addrs[i]);
+				//wd->sendPacket(packets.get() + nextPacket, singleLen, nullptr, &addrs[i]);
 			}
 
 			nextPacket += singleLen;
 		}
 
 		*injectAddr->load() = temp;
+
+		if (packetsCaught > 0)
+		{
+			wd->injectPackets(packets.get(), recvLen, NULL, addrs.get(), packetsCaught * sizeof(WINDIVERT_ADDRESS));
+		}
 	}
 
 	stopClient = true;
@@ -223,7 +243,7 @@ void ClientTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr, Cicru
 
 				PM::changePacketDstIP(batchPacket.get() + batchLen, secAddr);
 
-				PM::increaseTTL(batchPacket.get() + batchLen);
+				//PM::increaseTTL(batchPacket.get() + batchLen);
 		
 				wd->calcualteIPChecksum(batchPacket.get() + batchLen, recvLen, &batchAddr[packetNum]);
 
@@ -313,6 +333,8 @@ void ClientTunnel::sendLoop(std::atomic<struct sockaddr*>* from, CicrularBuffer*
 
 ClientTunnel::~ClientTunnel()
 {
+	delete encKey;
+	delete decKey;
 	delete[] secAddr;
 	delete[] localLow;
 	delete[] localHigh;

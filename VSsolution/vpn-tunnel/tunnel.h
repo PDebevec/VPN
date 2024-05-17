@@ -8,7 +8,7 @@
 #include "codes.h"
 #include "packetManipulation.h"
 
-constexpr unsigned short TUNNEL_BATCH_SIZE = 128;
+constexpr unsigned short TUNNEL_BATCH_SIZE = 512;
 constexpr unsigned short TUNNEL_MTU_SIZE = 1500 * 2 + 40;
 
 class Tunnel
@@ -99,19 +99,33 @@ void Tunnel::threadLoop()
 {
 	unsigned int threadCount = std::thread::hardware_concurrency();
 
-	if (threadCount > 3)
+	if(threadCount > 3)
 	{
 		CicrularBuffer* t1c = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
 		CicrularBuffer* t1r = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
 		tVec.push_back(new std::thread(std::bind(&Tunnel::UDPLoop, this, t1c, t1r)));
 		tVec.push_back(new std::thread(std::bind(&Tunnel::WDLoop, this, t1c, t1r)));
+		if (threadCount > 5)
+		{
+			t1c = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
+			t1r = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
+			tVec.push_back(new std::thread(std::bind(&Tunnel::UDPLoop, this, t1c, t1r)));
+			tVec.push_back(new std::thread(std::bind(&Tunnel::WDLoop, this, t1c, t1r)));
+			/*if (threadCount > 5)
+			{
+				t1c = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
+				t1r = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
+				tVec.push_back(new std::thread(std::bind(&Tunnel::UDPLoop, this, t1c, t1r)));
+				tVec.push_back(new std::thread(std::bind(&Tunnel::WDLoop, this, t1c, t1r)));
+			}*/
+		}
 	}
 
-	CicrularBuffer* t2c = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
-	CicrularBuffer* t2r = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
-	tVec.push_back(new std::thread(std::bind(&Tunnel::UDPLoop, this, t2c, t2r)));
+	CicrularBuffer* tc = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
+	CicrularBuffer* tr = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
+	tVec.push_back(new std::thread(std::bind(&Tunnel::UDPLoop, this, tc, tr)));
 
-	WDLoop(t2c, t2r);
+	WDLoop(tc, tr);
 
 	switchState = TUNNEL_DESTORY;
 }

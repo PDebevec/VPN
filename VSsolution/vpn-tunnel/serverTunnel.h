@@ -41,7 +41,7 @@ void ServerTunnel::initTunnel()
 	if (udp == nullptr && wd == nullptr)
 	{
 		udp = new UDPSocket(arg);
-		wd = new BaseWinDivert("inbound and !loopback and ip.SrcAddr != 0.0.0.0", 0);
+		wd = new BaseWinDivert("inbound and !loopback and ip.SrcAddr != 0.0.0.0 and !impostor", 0);
 	}
 
 	udp->initUDPServer();
@@ -129,6 +129,7 @@ void ServerTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved) {
 		{
 			break;
 		}
+
 		packetsCaught = addrLen / sizeof(WINDIVERT_ADDRESS);
 
 		temp.Timestamp = addrs[static_cast<size_t>(packetsCaught) - 1].Timestamp;
@@ -139,9 +140,18 @@ void ServerTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved) {
 		for (size_t i = 0; i < packetsCaught; i++)
 		{
 			singleLen = (packets.get()[2 + nextPacket] << 8) | packets.get()[3 + nextPacket];
+
 			if (PM::isDstIP(packets.get() + nextPacket, secAddr))
 			{
 				caught->push(packets.get() + nextPacket, singleLen);
+
+				std::memmove(packets.get() + nextPacket, packets.get() + nextPacket + singleLen, recvLen - nextPacket - singleLen);
+
+				std::memmove(&addrs[i], &addrs[i + 1], (packetsCaught - i - 1) * sizeof(WINDIVERT_ADDRESS));
+
+				packetsCaught--;
+				recvLen -= singleLen;
+				continue;
 			}
 			else
 			{
@@ -151,13 +161,18 @@ void ServerTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved) {
 				temp.Reserved3[0] = addrs[i].Reserved3[0];
 				temp.Socket.EndpointId = addrs[i].Socket.EndpointId;
 
-				wd->sendPacket(packets.get() + nextPacket, singleLen, nullptr, &addrs[i]);
+				//wd->sendPacket(packets.get() + nextPacket, singleLen, nullptr, &addrs[i]);
 			}
 
 			nextPacket += singleLen;
 		}
 
 		*injectAddr->load() = temp;
+
+		if (packetsCaught > 0)
+		{
+			wd->injectPackets(packets.get(), recvLen, NULL, addrs.get(), packetsCaught * sizeof(WINDIVERT_ADDRESS));
+		}
 	}
 
 	stopServer = true;
@@ -190,6 +205,7 @@ void ServerTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr, Cicru
 		if (batchAddr[0].Reserved3[0] != injectAddr->load()->Reserved3[0])
 		{
 			temp = *injectAddr->load();
+			std::memset(batchAddr, 0, sizeof(WINDIVERT_ADDRESS) * WINDIVERT_BATCH_MAX);
 			for (size_t i = 0; i < WINDIVERT_BATCH_MAX; i++)
 			{
 				batchAddr[i].Flow.EndpointId = temp.Flow.EndpointId;
@@ -217,7 +233,7 @@ void ServerTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr, Cicru
 
 				PM::changePacketSrcIP(batchPacket.get() + batchLen, secAddr);
 
-				PM::increaseTTL(batchPacket.get() + batchLen);
+				//PM::increaseTTL(batchPacket.get() + batchLen);
 
 				wd->calcualteIPChecksum(batchPacket.get() + batchLen, recvLen, &batchAddr[packetNum]);
 
@@ -229,7 +245,13 @@ void ServerTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr, Cicru
 				break;
 			}
 
-			wd->injectPackets(batchPacket.get(), batchLen, NULL, batchAddr, packetNum * sizeof(WINDIVERT_ADDRESS));
+			if (!wd->injectPackets(batchPacket.get(), batchLen, NULL, batchAddr, packetNum * sizeof(WINDIVERT_ADDRESS))) {
+				std::cout << batchLen << " " << packetNum << std::endl;
+				for (size_t i = 0; i < packetNum; i++)
+				{
+					PM::WDaddressInfo(&batchAddr[i]);
+				}
+			}
 
 			packetNum = 0;
 			batchLen = 0;
