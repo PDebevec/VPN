@@ -246,11 +246,6 @@ void ServerTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr, Cicru
 			}
 
 			if (!wd->injectPackets(batchPacket.get(), batchLen, NULL, batchAddr, packetNum * sizeof(WINDIVERT_ADDRESS))) {
-				std::cout << batchLen << " " << packetNum << std::endl;
-				for (size_t i = 0; i < packetNum; i++)
-				{
-					PM::WDaddressInfo(&batchAddr[i]);
-				}
 			}
 
 			packetNum = 0;

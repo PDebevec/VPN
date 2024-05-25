@@ -29,6 +29,7 @@ private:
 
 private:
     std::unique_ptr<QData[]> buffer;
+    std::unique_ptr<std::mutex[]> indexLocks;
     size_t capacity;
     size_t mask;
     size_t head;
@@ -44,7 +45,8 @@ private:
 };
 
 CicrularBuffer::CicrularBuffer(size_t capacity, unsigned int bufferLen)
-    : buffer(new QData[capacity]), head(0), tail(0), size(0), noWait(false), bufferLen(bufferLen)
+    : buffer(new QData[capacity]), indexLocks(new std::mutex[capacity]),
+    head(0), tail(0), size(0), noWait(false), bufferLen(bufferLen)
 {
     size_t powerOfTwoCapacity = 1;
     while (powerOfTwoCapacity < capacity) {
@@ -75,35 +77,41 @@ void CicrularBuffer::stopWait() {
 }
 
 void CicrularBuffer::push(unsigned char* data, unsigned int dataSize) {
+    size_t index;
     {
-        std::unique_lock<std::mutex> resizeLock(resizeMtx, std::defer_lock);
-        std::lock_guard<std::mutex> lock(mtx);
+        std::unique_lock<std::mutex> lock(mtx);
         if (size == capacity) {
-            resizeLock.lock();
             resize();
         }
-
-        std::memcpy(buffer[tail].ucp, data, dataSize);
-        buffer[tail].us = dataSize;
-
+        index = tail;
         tail = (tail + 1) & mask;
         ++size;
     }
+    std::lock_guard<std::mutex> indexLock(indexLocks[index]);
+
+    std::memcpy(buffer[index].ucp, data, dataSize);
+    buffer[index].us = dataSize;
+
     cv.notify_all();
 }
 
 bool CicrularBuffer::pop(unsigned char* data, unsigned int& dataLen) {
-    std::unique_lock<std::mutex> lock(mtx);
-    if (size == 0) {
-        return false;
+    size_t index;
+    {
+        std::unique_lock<std::mutex> lock(mtx);
+        if (size == 0) {
+            return false;
+        }
+        index = head;
+        head = (head + 1) & mask;
+        --size;
     }
+    std::lock_guard<std::mutex> indexLock(indexLocks[index]);
 
-    std::memcpy(data, buffer[head].ucp, buffer[head].us);
-    dataLen = buffer[head].us;
-    buffer[head].us = bufferLen;
+    std::memcpy(data, buffer[index].ucp, buffer[index].us);
+    dataLen = buffer[index].us;
+    buffer[index].us = bufferLen;
 
-    head = (head + 1) & mask;
-    --size;
     return true;
 }
 
@@ -121,6 +129,8 @@ void CicrularBuffer::resize()
     mask = capacity - 1;
     head = 0;
     tail = size;
+
+    indexLocks.reset(new std::mutex[capacity]);
 }
 
 bool CicrularBuffer::empty() const {

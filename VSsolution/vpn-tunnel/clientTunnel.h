@@ -104,7 +104,10 @@ void ClientTunnel::destroyTunnel()
 
 bool ClientTunnel::letLocalRange(UINT8* packet) const
 {
-	return memcmp(packet + 16, localLow, 4) >= 0 && memcmp(packet + 16, localHigh, 4) <= 0;
+	const UINT8* packetIP = packet + 16;
+	const UINT8* localLowPtr = localLow;
+	const UINT8* localHighPtr = localHigh;
+	return (memcmp(packetIP, localLow, 4) >= 0) && (memcmp(packetIP, localHigh, 4) <= 0);
 }
 
 void ClientTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved)
