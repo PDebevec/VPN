@@ -8,6 +8,7 @@ public:
 	ClientTunnel(char* argv[]);
 
 	void newConnection(char*, char*) override;
+	void closeConnection(char* secondary) override;
 
 	~ClientTunnel();
 
@@ -16,10 +17,10 @@ private:
 	void destroyTunnel() override;
 
 	void WDLoop(CicrularBuffer*, CicrularBuffer*) override;
-	void injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr, CicrularBuffer*);
+	void injectLoop(std::atomic<WINDIVERT_ADDRESS>& injectAddr, CicrularBuffer*);
 
 	void UDPLoop(CicrularBuffer*, CicrularBuffer*) override;
-	void sendLoop(std::atomic<struct sockaddr*>* from, CicrularBuffer*);
+	void sendLoop(std::atomic<struct sockaddr>& from, CicrularBuffer*);
 
 	bool letLocalRange(UINT8*) const;
 private:
@@ -78,6 +79,11 @@ inline void ClientTunnel::newConnection(char* secondary, char* keys)
 	switchState = TUNNEL_INIT;
 }
 
+inline void ClientTunnel::closeConnection(char* secondary)
+{
+	printf("closing connection!");
+}
+
 void ClientTunnel::destroyTunnel()
 {
 	printf("destroying\n");
@@ -119,10 +125,11 @@ void ClientTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 	UINT addrLen = sizeof(WINDIVERT_ADDRESS) * WINDIVERT_BATCH_MAX;
 	UINT recvLen = 0;
 	UINT packetsCaught = 0;
-	std::atomic<WINDIVERT_ADDRESS*>* injectAddr = new std::atomic<WINDIVERT_ADDRESS*>(new WINDIVERT_ADDRESS);
+	std::atomic<WINDIVERT_ADDRESS> injectAddr;
 	WINDIVERT_ADDRESS temp{};
+	injectAddr.store(temp);
 
-	std::thread* injectThread = new std::thread(std::bind(&ClientTunnel::injectLoop, this, injectAddr, recved));
+	std::thread* injectThread = new std::thread(&ClientTunnel::injectLoop, this, std::ref(injectAddr), recved);
 
 	while (!stopClient)
 	{
@@ -132,9 +139,9 @@ void ClientTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 		}
 
 		packetsCaught = addrLen / sizeof(WINDIVERT_ADDRESS);
-		
+
 		temp.Timestamp = addrs[static_cast<size_t>(packetsCaught) - 1].Timestamp;
-		
+
 		UINT nextPacket = 0;
 		UINT singleLen = 0;
 
@@ -178,7 +185,7 @@ void ClientTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 			nextPacket += singleLen;
 		}
 
-		*injectAddr->load() = temp;
+		injectAddr.store(temp);
 
 		if (packetsCaught > 0)
 		{
@@ -187,7 +194,6 @@ void ClientTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 	}
 
 	stopClient = true;
-	caught->stopWait();
 	recved->stopWait();
 
 
@@ -197,7 +203,6 @@ void ClientTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 	}
 	delete injectThread;
 
-	delete injectAddr;
 	delete recved;
 	packets.reset();
 	addrs.reset();
@@ -205,7 +210,7 @@ void ClientTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 	switchState = TUNNEL_DESTORY;
 }
 
-void ClientTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr, CicrularBuffer* recved)
+void ClientTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS>& injectAddr, CicrularBuffer* recved)
 {
 	printf("inject loop\n");
 	std::unique_ptr<UINT8[]> packet(new UINT8[WINDIVERT_MTU_MAX]);
@@ -217,9 +222,10 @@ void ClientTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr, Cicru
 
 	while (!stopClient)
 	{
-		if (batchAddr[0].Reserved3[0] != injectAddr->load()->Reserved3[0])
+		if (batchAddr[0].Reserved3[0] != injectAddr.load().Reserved3[0])
 		{
-			temp = *injectAddr->load();
+			temp = injectAddr.load();
+			std::memset(batchAddr, 0, sizeof(WINDIVERT_ADDRESS) * WINDIVERT_BATCH_MAX);
 			for (size_t i = 0; i < WINDIVERT_BATCH_MAX; i++)
 			{
 				batchAddr[i].Flow.EndpointId = temp.Flow.EndpointId;
@@ -227,6 +233,7 @@ void ClientTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr, Cicru
 				batchAddr[i].Reflect.Timestamp = temp.Reflect.Timestamp;
 				batchAddr[i].Reserved3[0] = temp.Reserved3[0];
 				batchAddr[i].Socket.EndpointId = temp.Socket.EndpointId;
+				batchAddr[i].Outbound = 1;
 			}
 		}
 
@@ -244,7 +251,7 @@ void ClientTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS*>* injectAddr, Cicru
 
 				PM::aes_decrypt(packet.get(), (int&)recvLen, decKey, batchPacket.get() + batchLen, (int&)recvLen);
 
-				PM::changePacketDstIP(batchPacket.get() + batchLen, secAddr);
+				PM::changePacketSrcIP(batchPacket.get() + batchLen, secAddr);
 
 				//PM::increaseTTL(batchPacket.get() + batchLen);
 		
@@ -278,21 +285,28 @@ void ClientTunnel::UDPLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 	printf("UDP loop\n");
 	std::unique_ptr<char[]> buffer(new char[WINDIVERT_MTU_MAX]);
 	int bufferSize = WINDIVERT_MTU_MAX;
-	std::atomic<struct sockaddr*>* from = new std::atomic<struct sockaddr*>(reinterpret_cast<struct sockaddr*>(udp->getSocketAddr()));
+	std::atomic<struct sockaddr> from;
+	sockaddr temp = *(sockaddr*)udp->getSocketAddr();
+	from.store(temp);
 	int fromLen = sizeof(sockaddr_in);
 	int recvLen = NULL;
 
-	std::thread* sendThread = new std::thread(std::bind(&ClientTunnel::sendLoop, this, from, caught));
+	std::thread* sendThread = new std::thread(&ClientTunnel::sendLoop, this, std::ref(from), caught);
 
 	while (!stopClient)
 	{
-		if (!udp->recvBufferFrom(buffer.get(), bufferSize, from->load(), &fromLen, recvLen))
+		if (!udp->recvBufferFrom(buffer.get(), bufferSize, &temp, &fromLen, recvLen))
 		{
 			break;
 		}
 
+		from.store(temp);
+
 		recved->push(reinterpret_cast<UINT8*>(buffer.get()), recvLen);
 	}
+
+	stopClient = true;
+	caught->stopWait();
 
 	if (sendThread->joinable())
 	{
@@ -300,23 +314,25 @@ void ClientTunnel::UDPLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 	}
 	delete sendThread;
 	
-	delete from;
 	delete caught;
 	buffer.reset();
 }
 
-void ClientTunnel::sendLoop(std::atomic<struct sockaddr*>* from, CicrularBuffer* caught)
+void ClientTunnel::sendLoop(std::atomic<struct sockaddr>& from, CicrularBuffer* caught)
 {
 	printf("send loop\n");
 	std::unique_ptr<char[]> buffer(new char[WINDIVERT_MTU_MAX]);
 	std::unique_ptr<char[]> encBuffer(new char[WINDIVERT_MTU_MAX]);
 	std::unique_ptr<UINT8[]> iv(new UINT8[AES_BLOCK_SIZE]);
+	sockaddr temp{};
 	int recvLen = NULL;
 	int fromLen = sizeof(sockaddr_in);
 	int sendLen = NULL;
 
 	while (!stopClient)
 	{
+		temp = from.load();
+
 		caught->wait();
 
 		while (!caught->empty())
@@ -325,7 +341,7 @@ void ClientTunnel::sendLoop(std::atomic<struct sockaddr*>* from, CicrularBuffer*
 
 			PM::aes_encrypt(reinterpret_cast<UINT8*>(buffer.get()), recvLen, encKey, iv.get(), reinterpret_cast<UINT8*>(encBuffer.get()), recvLen);
 
-			udp->sendBufferTo(encBuffer.get(), recvLen, from->load(), fromLen, sendLen);
+			udp->sendBufferTo(encBuffer.get(), recvLen, &temp, fromLen, sendLen);
 		}
 	}
 
@@ -336,9 +352,5 @@ void ClientTunnel::sendLoop(std::atomic<struct sockaddr*>* from, CicrularBuffer*
 
 ClientTunnel::~ClientTunnel()
 {
-	delete encKey;
-	delete decKey;
 	delete[] secAddr;
-	delete[] localLow;
-	delete[] localHigh;
 }

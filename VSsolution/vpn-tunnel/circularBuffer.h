@@ -38,7 +38,6 @@ private:
     unsigned int bufferLen;
 
     mutable std::mutex mtx;
-    mutable std::mutex resizeMtx;
     std::condition_variable cv;
 
     bool noWait;

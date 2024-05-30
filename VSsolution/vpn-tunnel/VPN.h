@@ -32,7 +32,7 @@ private:
 
 	std::thread* tunnelT;
 	Tunnel* vpnTunnel;
-	IPCPiep* coms;
+	IPCPipe* coms;
 };
 
 VPN::VPN(int argc, char* argv[])
@@ -40,7 +40,7 @@ VPN::VPN(int argc, char* argv[])
 	vpnLoop = false;
 	tunnelT = nullptr;
 	vpnTunnel = nullptr;
-	coms = new IPCPiep();
+	coms = new IPCPipe();
 	
 	if (argc >= 4 && isValidIP(argv[2]) && isValidPort(argv[3]))
 	{

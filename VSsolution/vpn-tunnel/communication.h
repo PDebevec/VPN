@@ -3,21 +3,21 @@
 #include <iostream>
 #include <windows.h>
 
-class IPCPiep
+class IPCPipe
 {
 public:
-	IPCPiep();
+    IPCPipe();
 
     bool pipeRead(LPVOID buffer, DWORD bufferSize, LPDWORD readLen);
     bool pipeWrite(LPCVOID buffer, DWORD bufferLen, LPDWORD writeLen);
 
-	~IPCPiep();
+	~IPCPipe();
 
 private:
     HANDLE pipe;
 };
 
-IPCPiep::IPCPiep()
+IPCPipe::IPCPipe()
 {
     printf("pipe init\n");
     pipe = CreateFile(
@@ -34,7 +34,7 @@ IPCPiep::IPCPiep()
     }
 }
 
-bool IPCPiep::pipeRead(LPVOID buffer, DWORD bufferSize, LPDWORD readLen)
+bool IPCPipe::pipeRead(LPVOID buffer, DWORD bufferSize, LPDWORD readLen)
 {
     if (ReadFile(pipe, buffer, bufferSize, readLen, NULL) == FALSE)
     {
@@ -44,7 +44,7 @@ bool IPCPiep::pipeRead(LPVOID buffer, DWORD bufferSize, LPDWORD readLen)
     return true;
 }
 
-bool IPCPiep::pipeWrite(LPCVOID buffer, DWORD bufferLen, LPDWORD writeLen)
+bool IPCPipe::pipeWrite(LPCVOID buffer, DWORD bufferLen, LPDWORD writeLen)
 {
     if (WriteFile(pipe, buffer, bufferLen, writeLen, NULL) == FALSE)
     {
@@ -54,7 +54,7 @@ bool IPCPiep::pipeWrite(LPCVOID buffer, DWORD bufferLen, LPDWORD writeLen)
     return true;
 }
 
-IPCPiep::~IPCPiep()
+IPCPipe::~IPCPipe()
 {
     CloseHandle(pipe);
 }
