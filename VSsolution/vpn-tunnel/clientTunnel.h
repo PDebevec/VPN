@@ -82,6 +82,8 @@ inline void ClientTunnel::newConnection(char* secondary, char* keys)
 inline void ClientTunnel::closeConnection(char* secondary)
 {
 	printf("closing connection!");
+	stopClient = true;
+	switchState = TUNNEL_DESTORY;
 }
 
 void ClientTunnel::destroyTunnel()
@@ -93,7 +95,7 @@ void ClientTunnel::destroyTunnel()
 	stopTunnel = true;
 	stopClient = true;
 
-	for (auto *t : tVec)
+	for (std::thread *t : tVec)
 	{
 		if (t->joinable())
 		{
@@ -103,6 +105,10 @@ void ClientTunnel::destroyTunnel()
 	}
 
 	tVec.clear();
+
+	delete encKey;
+	delete decKey;
+	delete[] secAddr;
 
 	switchState = TUNNEL_STOP;
 	tunnelState = TUNNEL_STOP;

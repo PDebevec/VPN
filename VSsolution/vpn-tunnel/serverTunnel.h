@@ -96,8 +96,8 @@ void ServerTunnel::destroyTunnel()
 		if (t->joinable())
 		{
 			t->join();
-			delete t;
 		}
+		delete t;
 	}
 	tVec.clear();
 

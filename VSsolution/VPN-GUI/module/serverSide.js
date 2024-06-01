@@ -216,6 +216,8 @@ function handlePipeMsg(msg) {
             break
         case 'disconnect-user':
             return Buffer.from(`FIN${msg.secondary}\0`)
+        case 'close-tunnel':
+            return Buffer.from('FIN\0')
         default:
     }
 }
@@ -264,7 +266,6 @@ emitter.on('server-comms', async (msg) => {
             emitter.emit('message', getStatus())
             await stopIPC()
                 .catch(err => emitter.emit('message', getStatus(err)))
-            emitter.removeAllListeners('pipe-comms')
             emitter.emit('message', getStatus())
             await closeConnection()
                 .catch(err => emitter.emit('message', getStatus(err)))

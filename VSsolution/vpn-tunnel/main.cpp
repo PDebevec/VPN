@@ -9,7 +9,5 @@ int main(int argc, char* argv[]) {
 	vpn.startVPN(argc, argv);
 	
 	vpn.communicationLoop();
-	
-	system("pause");
 	return 0;
 }

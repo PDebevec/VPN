@@ -70,11 +70,11 @@ namespace PM {
     UINT8* ipStringToArray(char* ipString) {
         UINT8* byteArray = new UINT8[4];
 
-        char* nextToken = nullptr;
+        char* nextToken = nullptr;;
         char* token = strtok_s(ipString, ".", &nextToken);
         int i = 0;
         while (token != nullptr && i < 4) {
-            byteArray[i++] = atoi(token);
+            byteArray[i++] = static_cast<unsigned char>(atoi(token));
             token = strtok_s(nullptr, ".", &nextToken);
         }
 

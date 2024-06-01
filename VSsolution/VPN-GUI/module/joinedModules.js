@@ -56,19 +56,23 @@ export function startIPC(data, handlePipeData, handlePipeMsg) {
                 })
 
                 socket.on('end', () => {
-                    emitter.emit(data.side + '-comms', { action: 'check-status'})
+                    if (tunnel) {
+                        emitter.emit(data.side + '-comms', { action: 'check-status'})
+                    }
                 })
 
                 emitter.on('pipe-comms', (msg) => {
                     let res = handlePipeMsg(msg)
                     if (res) {
                         socket.write(res)
+                    } else {
+                        socket.destroy()
                     }
                 })
             })
 
             ipc.listen('\\\\.\\pipe\\VPNpipe', () => resolve(data))
-
+            
             ipc.maxConnections = 1;
 
         } catch (e) {
@@ -84,13 +88,11 @@ export function stopIPC() {
             return
         }
 
-        try {
-            ipc.close()
-            ipc = undefined
-            resolve(true)
-        } catch (err) {
-            reject(err.message)
-        }
+        emitter.emit('pipe-comms', {action: 'end-connections'})
+        ipc.close()
+        ipc = undefined
+        emitter.removeAllListeners('pipe-comms');
+        resolve(true)
     })
 }
 export function startTunnel(data, ipRange) {
@@ -117,41 +119,11 @@ export function closeTunnel() {
             resolve(true)
             return
         }
-        checkTunnelStatus()
-            .then(() => {
-                exec(`powershell -Command "Start-Process -Verb RunAs -FilePath 'powershell' -ArgumentList '-Command Get-Process vpn-tunnel | Stop-Process'"`,
-                    (err, stdout, stderr) => {
-                        tunnel = false
-                        if (err) {
-                            reject(err)
-                        } else {
-                            resolve(true)
-                        }
-                    })
-            })
-            .catch((err) => {
-                tunnel = false
-                if (err) {
-                    reject(err)
-                } else {
-                    resolve()
-                }
-            })
-    })
-}
 
-export function checkTunnelStatus() {
-    return new Promise((resolve, reject) => {
-        exec('tasklist', (err, stdout, stderr) => {
-            if (err) {
-                reject(err.message);
-            } else {
-                if (stdout.includes('vpn-tunnel')) {
-                    resolve(true);
-                } else {
-                    reject();
-                }
-            }
-        });
-    });
+        if (emitter.emit('pipe-comms', { action: 'close-tunnel' })) {
+            tunnel = undefined
+            resolve(true)
+        }else
+            reject(false)
+    })
 }
