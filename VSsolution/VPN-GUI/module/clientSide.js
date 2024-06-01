@@ -44,8 +44,6 @@ function connectHTTPS(data) {
                 https.post(`https://${data.primary}:${data.port}/encryption/${user.hash}`, { encrypted })
                     .then((res) => {
                         user.keys = res.data.keys
-                        //httpsConnection = true
-                        //resolve(data)
 
                         wss = new WebSocket(`wss://${data.primary}:${data.port}/websocket/${user.hash}`, {rejectUnauthorized: false})
                         
@@ -157,7 +155,8 @@ emitter.on('client-comms', async (msg) => {
                         })
                 }).catch(err => {
                     emitter.emit('message', getStatus(err))
-                    //httpsConnection = undefined
+                    wss = undefined
+                    emitter.emit('close-module')
                 })
             break;
         case 'close-tunnel':
@@ -173,7 +172,7 @@ emitter.on('client-comms', async (msg) => {
             emitter.emit('close-module')
             break;
         case 'check-status':
-            if (wss || ipc instanceof net.Server || tunnel) {
+            if (wss || ipc instanceof Server || tunnel) {
                 emitter.emit('client-comms', { action: 'close-tunnel' })
             }
             else {

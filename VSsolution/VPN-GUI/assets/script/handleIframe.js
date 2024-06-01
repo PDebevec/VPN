@@ -121,19 +121,18 @@ function confirmBtn(event) {
 
     ids.forEach(id => {
         const element = frameDoc.getElementById(id);
-        if (element) {
-            if (!element.value) {
-                element.classList.add('is-invalid')
-            } else {
-                element.classList.remove('is-invalid')
-                if (element.files) {
-                    const value = element.files[0].path
-                    settings[id] = value || settings[id];
-                } else {
-                    const value = id === 'port' ? Number(element.value) : element.value;
-                    settings[id] = value || settings[id];
-                }
+        if (!element) return;
+
+        if (!element.value) {
+            const localStorageItem = JSON.parse(localStorage.getItem(side)) || {};
+            if (!localStorageItem[id]) {
+                element.classList.add('is-invalid');
             }
+            settings[id] = localStorageItem[id] || settings[id];
+        } else {
+            element.classList.remove('is-invalid');
+            const value = element.files ? element.files[0].path : (id === 'port' ? Number(element.value) : element.value);
+            settings[id] = value || settings[id];
         }
     });
 
