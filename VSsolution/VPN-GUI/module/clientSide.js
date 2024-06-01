@@ -44,8 +44,6 @@ function connectHTTPS(data) {
                 https.post(`https://${data.primary}:${data.port}/encryption/${user.hash}`, { encrypted })
                     .then((res) => {
                         user.keys = res.data.keys
-                        //httpsConnection = true
-                        //resolve(data)
 
                         wss = new WebSocket(`wss://${data.primary}:${data.port}/websocket/${user.hash}`, {rejectUnauthorized: false})
                         
@@ -106,7 +104,6 @@ function getSecondaryIP() {
     return user.secondary
 }
 function handlePipeData(data) {
-    console.log(data)
     if (data == 'ACK') {
         emitter.emit('pipe-comms', {
             action: 'start-tunnel',
@@ -116,10 +113,11 @@ function handlePipeData(data) {
     }
 }
 function handlePipeMsg(msg) {
-    console.log(msg)
     switch (msg.action) {
         case 'start-tunnel':
             return Buffer.concat([Buffer.from(msg.keys, 'hex'), Buffer.from(msg.secondary + '\0')])
+        case 'close-tunnel':
+            return Buffer.from('FIN\0')
             break;
     }
 }
@@ -157,7 +155,8 @@ emitter.on('client-comms', async (msg) => {
                         })
                 }).catch(err => {
                     emitter.emit('message', getStatus(err))
-                    //httpsConnection = undefined
+                    wss = undefined
+                    emitter.emit('close-module')
                 })
             break;
         case 'close-tunnel':
@@ -166,7 +165,6 @@ emitter.on('client-comms', async (msg) => {
             emitter.emit('message', getStatus())
             await stopIPC()
                 .catch(err => emitter.emit('message', getStatus(err)))
-            emitter.removeAllListeners('pipe-comms')
             emitter.emit('message', getStatus())
             await closeConnection(msg.data)
                 .catch(err => emitter.emit('message', getStatus(err)))
@@ -174,7 +172,7 @@ emitter.on('client-comms', async (msg) => {
             emitter.emit('close-module')
             break;
         case 'check-status':
-            if (wss || ipc instanceof net.Server || tunnel) {
+            if (wss || ipc instanceof Server || tunnel) {
                 emitter.emit('client-comms', { action: 'close-tunnel' })
             }
             else {

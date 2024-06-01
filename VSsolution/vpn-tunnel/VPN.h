@@ -1,4 +1,4 @@
-#pragma once
+//#pragma once
 
 #include <regex>
 #include "clientTunnel.h"
@@ -32,7 +32,7 @@ private:
 
 	std::thread* tunnelT;
 	Tunnel* vpnTunnel;
-	IPCPiep* coms;
+	IPCPipe* coms;
 };
 
 VPN::VPN(int argc, char* argv[])
@@ -40,7 +40,7 @@ VPN::VPN(int argc, char* argv[])
 	vpnLoop = false;
 	tunnelT = nullptr;
 	vpnTunnel = nullptr;
-	coms = new IPCPiep();
+	coms = new IPCPipe();
 	
 	if (argc >= 4 && isValidIP(argv[2]) && isValidPort(argv[3]))
 	{
@@ -145,6 +145,8 @@ void VPN::pipeLoop()
 
 		coms->pipeWrite(buffer, (DWORD)strlen(buffer), &writeLen);
 	}
+
+	delete[] buffer;
 }
 
 inline void VPN::stopVPN()
@@ -162,7 +164,6 @@ inline void VPN::stopVPN()
 	}
 
 	delete tunnelT;
-	delete vpnTunnel;
 }
 
 inline bool VPN::isValidIP(const char* ipStr) {
@@ -178,6 +179,4 @@ inline bool VPN::isValidPort(const char* portStr) {
 VPN::~VPN()
 {
 	delete coms;
-	delete tunnelT;
-	delete vpnTunnel;
 }

@@ -19,7 +19,7 @@ public:
 	void restart();
 
 	void push(unsigned char*, unsigned int);
-	void pop(unsigned char*, unsigned int&);
+	bool pop(unsigned char*, unsigned int&);
 
 	bool empty() const;
 	size_t size() const;
@@ -100,16 +100,16 @@ void SafeTwoQueue::push(unsigned char* data, unsigned int dataSize)
 	cv.notify_all();
 }
 
-void SafeTwoQueue::pop(unsigned char* data, unsigned int& dataLen)
+bool SafeTwoQueue::pop(unsigned char* data, unsigned int& dataLen)
 {
 	std::unique_lock<std::mutex> lock(mtx);
 	if (q2.empty())
 	{
-		cv.wait(lock, [this] { return !q2.empty() || noWait; });
-		if (noWait)
-		{
-			return;
-		}
+		//cv.wait(lock, [this] { return !q2.empty() || noWait; });
+		//if (noWait)
+		//{
+			return false;
+		//}
 	}
 
 	tempPop = q2.front();
@@ -120,6 +120,7 @@ void SafeTwoQueue::pop(unsigned char* data, unsigned int& dataLen)
 
 	tempPop->us = bufferLen;
 	q1.push(tempPop);
+	return true;
 }
 
 inline bool SafeTwoQueue::empty() const

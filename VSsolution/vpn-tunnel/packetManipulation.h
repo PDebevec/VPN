@@ -50,13 +50,18 @@ namespace PM {
     }
 
 	bool isLocalPacket(UINT8* pPacket) {
-        switch (pPacket[16]) {
+        UINT8 firstOctet = pPacket[16];
+        UINT8 secondOctet = pPacket[17];
+
+        UINT16 ipAddress = (firstOctet << 8) | secondOctet;
+
+        switch (firstOctet) {
         case 10:
             return true;
         case 172:
-            return (pPacket[17] >= 16 && pPacket[17] <= 31);
+            return (ipAddress >= 0xAC10 && ipAddress <= 0xAC1F);
         case 192:
-            return (pPacket[17] == 168);
+            return (secondOctet == 168);
         default:
             return false;
         }
@@ -65,11 +70,11 @@ namespace PM {
     UINT8* ipStringToArray(char* ipString) {
         UINT8* byteArray = new UINT8[4];
 
-        char* nextToken = nullptr;
+        char* nextToken = nullptr;;
         char* token = strtok_s(ipString, ".", &nextToken);
         int i = 0;
         while (token != nullptr && i < 4) {
-            byteArray[i++] = atoi(token);
+            byteArray[i++] = static_cast<unsigned char>(atoi(token));
             token = strtok_s(nullptr, ".", &nextToken);
         }
 
@@ -86,34 +91,28 @@ namespace PM {
     }
 
     void changePacketDstIP(UINT8* packet, UINT8* ip) {
-        packet[16] = ip[0];
-        packet[17] = ip[1];
-        packet[18] = ip[2];
-        packet[19] = ip[3];
+        std::memcpy(packet + 16, ip, 4);
     }
 
     void changePacketSrcIP(UINT8* packet, UINT8* ip) {
-        packet[12] = ip[0];
-        packet[13] = ip[1];
-        packet[14] = ip[2];
-        packet[15] = ip[3];
+        std::memcpy(packet + 12, ip, 4);
     }
 
     void increaseTTL(unsigned char* packet) {
-        packet[8] += 8;
+        packet[8] = 128;
     }
 
     void aes_encrypt(UINT8* plaintext, int& plaintextLen, const UINT8* key, UINT8* iv, UINT8* ciphertext, int& ciphertextLen) {
-        EVP_CIPHER_CTX* ctx;
+        EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
         int len;
 
-        if (RAND_bytes(iv, AES_BLOCK_SIZE) != 1) {
-            std::cerr << "Error: RAND_bytes() failed to generate IV" << std::endl;
+        if (!ctx) {
+            std::cerr << "Error: EVP_CIPHER_CTX_new() failed" << std::endl;
             return;
         }
 
-        if (!(ctx = EVP_CIPHER_CTX_new())) {
-            std::cerr << "Error: EVP_CIPHER_CTX_new() failed" << std::endl;
+        if (RAND_bytes(iv, AES_BLOCK_SIZE) != 1) {
+            std::cerr << "Error: RAND_bytes() failed to generate IV" << std::endl;
             return;
         }
 
@@ -176,20 +175,18 @@ namespace PM {
         EVP_CIPHER_CTX_free(ctx);
     }
 
-    inline bool isDstIP(UINT8* packet, UINT8* ip) {
-        return (
-            packet[16] == ip[0] &&
-            packet[17] == ip[1] &&
-            packet[18] == ip[2] &&
-            packet[19] == ip[3]);
+    bool isDstIP(const UINT8* packet, const UINT8* ip) {
+        const UINT32* packet32 = reinterpret_cast<const UINT32*>(packet + 16);
+        const UINT32* ip32 = reinterpret_cast<const UINT32*>(ip);
+
+        return (*packet32 == *ip32);
     }
     
-    inline bool isSrcIP(UINT8* packet, UINT8* ip) {
-        return (
-            packet[12] == ip[0] &&
-            packet[13] == ip[1] &&
-            packet[14] == ip[2] &&
-            packet[15] == ip[3]);
+    bool isSrcIP(UINT8* packet, UINT8* ip) {
+        const UINT32* packet32 = reinterpret_cast<const UINT32*>(packet + 12);
+        const UINT32* ip32 = reinterpret_cast<const UINT32*>(ip);
+
+        return (*packet32 == *ip32);
     }
 
     template <typename T>
