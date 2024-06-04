@@ -125,9 +125,9 @@ bool ClientTunnel::letLocalRange(UINT8* packet) const
 void ClientTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 {
 	printf("WD loop\n");
-	std::unique_ptr<UINT8[]> packets(new UINT8[WINDIVERT_MTU_MAX * WINDIVERT_BATCH_MAX]);
+	std::unique_ptr<UINT8[]> packets(new UINT8[TUNNEL_MTU_SIZE * WINDIVERT_BATCH_MAX]);
 	std::unique_ptr<WINDIVERT_ADDRESS[]> addrs(new WINDIVERT_ADDRESS[WINDIVERT_BATCH_MAX]);
-	UINT packetLen = WINDIVERT_MTU_MAX * WINDIVERT_BATCH_MAX;
+	UINT packetLen = TUNNEL_MTU_SIZE * WINDIVERT_BATCH_MAX;
 	UINT addrLen = sizeof(WINDIVERT_ADDRESS) * WINDIVERT_BATCH_MAX;
 	UINT recvLen = 0;
 	UINT packetsCaught = 0;
@@ -219,9 +219,9 @@ void ClientTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 void ClientTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS>& injectAddr, CicrularBuffer* recved)
 {
 	printf("inject loop\n");
-	std::unique_ptr<UINT8[]> packet(new UINT8[WINDIVERT_MTU_MAX]);
-	std::unique_ptr<UINT8[]> batchPacket(new UINT8[WINDIVERT_MTU_MAX * WINDIVERT_BATCH_MAX]);
-	std::unique_ptr<UINT8[]> decPacket(new UINT8[WINDIVERT_MTU_MAX]);
+	std::unique_ptr<UINT8[]> packet(new UINT8[TUNNEL_MTU_SIZE]);
+	std::unique_ptr<UINT8[]> batchPacket(new UINT8[TUNNEL_MTU_SIZE * WINDIVERT_BATCH_MAX]);
+	std::unique_ptr<UINT8[]> decPacket(new UINT8[TUNNEL_MTU_SIZE]);
 	WINDIVERT_ADDRESS* batchAddr = new WINDIVERT_ADDRESS[WINDIVERT_BATCH_MAX];
 	WINDIVERT_ADDRESS temp{};
 	UINT recvLen = NULL;
@@ -248,33 +248,35 @@ void ClientTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS>& injectAddr, Cicrul
 
 		while (!recved->empty())
 		{
+			packetNum = 0;
+			batchLen = 0;
+
 			do {
 				if (!recved->pop(packet.get(), recvLen))
 				{
 					break;
 				}
-				packetNum++;
 
 				PM::aes_decrypt(packet.get(), (int&)recvLen, decKey, batchPacket.get() + batchLen, (int&)recvLen);
 
 				PM::changePacketSrcIP(batchPacket.get() + batchLen, secAddr);
 
 				//PM::increaseTTL(batchPacket.get() + batchLen);
-		
-				wd->calcualteIPChecksum(batchPacket.get() + batchLen, recvLen, &batchAddr[packetNum]);
 
+				if (!wd->calcualteIPChecksum(batchPacket.get() + batchLen, recvLen, &batchAddr[packetNum])) {
+					continue;
+				}
+
+				packetNum++;
 				batchLen += recvLen;
-			} while (!recved->empty() && packetNum < 255);
+			} while (!recved->empty() && packetNum < 256);
 
-			if (packetNum == 0)
+			if (batchLen == 0 || packetNum == 0)
 			{
 				break;
 			}
 
 			wd->injectPackets(batchPacket.get(), batchLen, NULL, batchAddr, packetNum * sizeof(WINDIVERT_ADDRESS));
-
-			packetNum = 0;
-			batchLen = 0;
 		}
 
 		recved->wait();

@@ -11,9 +11,6 @@ public:
 	const std::atomic<byte>* getUDPState();
 	const std::atomic<byte>* getSocketState();
 	sockaddr_in* getSocketAddr();
-	SOCKET* getsoc() {
-		return &soc;
-	}
 
 	~UDPSocket();
 
@@ -51,14 +48,6 @@ bool UDPSocket::initUDPServer()
 		return false;
 	}
 
-	/*u_long mode = 1;
-	if (ioctlsocket(soc, FIONBIO, &mode) != 0) {
-		std::cerr << "Failed to set socket to non-blocking mode\n";
-		closesocket(soc);
-		WSACleanup();
-		return 1;
-	}*/
-
 	udpState = UDP_INITIALIZED;
 	return true;
 }
@@ -80,14 +69,6 @@ bool UDPSocket::initUDPClient()
 		throw "Failed binding socket! WSA error code: " + WSAGetLastError();
 		return false;
 	}
-
-	/*u_long mode = 1;
-	if (ioctlsocket(soc, FIONBIO, &mode) != 0) {
-		std::cerr << "Failed to set socket to non-blocking mode\n";
-		closesocket(soc);
-		WSACleanup();
-		return 1;
-	}*/
 
 	udpState = UDP_INITIALIZED;
 	return true;

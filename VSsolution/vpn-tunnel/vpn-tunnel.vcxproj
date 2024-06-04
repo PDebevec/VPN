@@ -172,10 +172,7 @@
     <ClInclude Include="baseSocket.h" />
     <ClInclude Include="clientTunnel.h" />
     <ClInclude Include="communication.h" />
-    <ClInclude Include="ConnectedClients.h" />
     <ClInclude Include="circularBuffer.h" />
-    <ClInclude Include="safeQueue.h" />
-    <ClInclude Include="safeTwoQueue.h" />
     <ClInclude Include="serverTunnel.h" />
     <ClInclude Include="baseWinDivert.h" />
     <ClInclude Include="codes.h" />

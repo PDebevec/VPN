@@ -58,20 +58,11 @@
     <ClInclude Include="communication.h">
       <Filter>Header Files\Base</Filter>
     </ClInclude>
-    <ClInclude Include="safeQueue.h">
-      <Filter>Header Files\Base</Filter>
-    </ClInclude>
-    <ClInclude Include="ConnectedClients.h">
-      <Filter>Header Files\Side</Filter>
-    </ClInclude>
     <ClInclude Include="codes.h">
       <Filter>Header Files\Base</Filter>
     </ClInclude>
     <ClInclude Include="UDPSocket.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="safeTwoQueue.h">
-      <Filter>Header Files\Base</Filter>
     </ClInclude>
     <ClInclude Include="circularBuffer.h">
       <Filter>Header Files\Base</Filter>
