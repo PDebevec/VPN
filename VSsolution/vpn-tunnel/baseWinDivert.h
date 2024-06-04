@@ -49,17 +49,17 @@ inline bool BaseWinDivert::sendPacket(const void* pPacket, UINT packetLen, UINT*
 
 inline bool BaseWinDivert::calcualteIPChecksum(void* pPacket, UINT packetLen, WINDIVERT_ADDRESS* pAddr)
 {
-	return WinDivertHelperCalcChecksums(pPacket, packetLen, pAddr, WINDIVERT_HELPER_NO_ICMPV6_CHECKSUM) == TRUE;
+	return (WinDivertHelperCalcChecksums(pPacket, packetLen, pAddr, WINDIVERT_HELPER_NO_ICMPV6_CHECKSUM) == TRUE);
 }
 
 inline bool BaseWinDivert::catchPackets(void* pPacket, UINT packetLen, UINT* recvLen, WINDIVERT_ADDRESS* pAddr, UINT* pAddrLen)
 {
-	return WinDivertRecvEx(handle, pPacket, packetLen, recvLen, 0, pAddr, pAddrLen, NULL) == TRUE;
+	return (WinDivertRecvEx(handle, pPacket, packetLen, recvLen, 0, pAddr, pAddrLen, NULL) == TRUE);
 }
 
 inline bool BaseWinDivert::injectPackets(const void* pPacket, UINT packetLen, UINT* sendLen, const WINDIVERT_ADDRESS* pAddr, UINT pAddrLen)
 {
-	return WinDivertSendEx(handle, pPacket, packetLen, sendLen, 0, pAddr, pAddrLen, NULL) == TRUE;
+	return (WinDivertSendEx(handle, pPacket, packetLen, sendLen, 0, pAddr, pAddrLen, NULL) == TRUE);
 }
 
 inline bool BaseWinDivert::openWinDivert()

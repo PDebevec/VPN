@@ -57,7 +57,8 @@ export function startIPC(data, handlePipeData, handlePipeMsg) {
 
                 socket.on('end', () => {
                     if (tunnel) {
-                        emitter.emit(data.side + '-comms', { action: 'check-status'})
+                        tunnel = undefined
+                        emitter.emit(data.side + '-comms', { action: 'check-status' })
                     }
                 })
 

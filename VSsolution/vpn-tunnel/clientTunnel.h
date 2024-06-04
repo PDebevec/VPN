@@ -276,7 +276,9 @@ void ClientTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS>& injectAddr, Cicrul
 				break;
 			}
 
-			wd->injectPackets(batchPacket.get(), batchLen, NULL, batchAddr, packetNum * sizeof(WINDIVERT_ADDRESS));
+			if (!wd->injectPackets(batchPacket.get(), batchLen, NULL, batchAddr, packetNum * sizeof(WINDIVERT_ADDRESS))) {
+				std::cout << "err: " << GetLastError() << std::endl;
+			}
 		}
 
 		recved->wait();
