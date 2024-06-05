@@ -2,10 +2,15 @@
 
 #include <queue>
 #include <condition_variable>
+#include <iostream>
 
 struct QData {
 	unsigned char* ucp;
 	unsigned int us;
+
+    QData() = default;
+    QData(unsigned int bufferLen)
+        :ucp(new unsigned char[bufferLen]), us(bufferLen) {}
 
     ~QData() {
         delete[] ucp;
@@ -44,7 +49,7 @@ private:
 };
 
 CicrularBuffer::CicrularBuffer(size_t capacity, unsigned int bufferLen)
-    : buffer(new QData[capacity]), indexLocks(new std::mutex[capacity]),
+    : buffer(std::make_unique<QData[]>(capacity)), indexLocks(new std::mutex[capacity]),
     head(0), tail(0), size(0), noWait(false), bufferLen(bufferLen)
 {
     size_t powerOfTwoCapacity = 1;
@@ -90,7 +95,6 @@ void CicrularBuffer::push(unsigned char* data, unsigned int dataSize) {
 
     std::memcpy(buffer[index].ucp, data, dataSize);
     buffer[index].us = dataSize;
-
     cv.notify_all();
 }
 
@@ -117,7 +121,7 @@ bool CicrularBuffer::pop(unsigned char* data, unsigned int& dataLen) {
 void CicrularBuffer::resize()
 {
     size_t newCapacity = capacity * 2;
-    std::unique_ptr<QData[]> newBuffer(new QData[newCapacity]);
+    std::unique_ptr<QData[]> newBuffer = std::make_unique<QData[]>(newCapacity);
 
     for (size_t i = 0; i < size; ++i) {
         newBuffer[i] = std::move(buffer[(head + i) & mask]);

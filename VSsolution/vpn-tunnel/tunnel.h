@@ -8,7 +8,7 @@
 #include "codes.h"
 #include "packetManipulation.h"
 
-constexpr unsigned short TUNNEL_BATCH_SIZE = 256;
+constexpr unsigned short TUNNEL_BATCH_SIZE = 0x100;
 constexpr unsigned short TUNNEL_MTU_SIZE = 2500 + 40;
 
 class Tunnel

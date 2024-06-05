@@ -259,7 +259,7 @@ void ClientTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS>& injectAddr, Cicrul
 
 				PM::aes_decrypt(packet.get(), (int&)recvLen, decKey, batchPacket.get() + batchLen, (int&)recvLen);
 
-				PM::changePacketSrcIP(batchPacket.get() + batchLen, secAddr);
+				PM::changePacketDstIP(batchPacket.get() + batchLen, secAddr);
 
 				//PM::increaseTTL(batchPacket.get() + batchLen);
 
