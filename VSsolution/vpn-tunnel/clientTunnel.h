@@ -126,7 +126,7 @@ void ClientTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 {
 	printf("WD loop\n");
 	std::unique_ptr<UINT8[]> packets(new UINT8[TUNNEL_MTU_SIZE * WINDIVERT_BATCH_MAX]);
-	std::unique_ptr<WINDIVERT_ADDRESS[]> addrs(new WINDIVERT_ADDRESS[WINDIVERT_BATCH_MAX]);
+	std::unique_ptr<WINDIVERT_ADDRESS[]> addrs(new WINDIVERT_ADDRESS[WINDIVERT_BATCH_MAX + 1]);
 	UINT packetLen = TUNNEL_MTU_SIZE * WINDIVERT_BATCH_MAX;
 	UINT addrLen = sizeof(WINDIVERT_ADDRESS) * WINDIVERT_BATCH_MAX;
 	UINT recvLen = 0;

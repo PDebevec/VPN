@@ -43,6 +43,7 @@ private:
     unsigned int bufferLen;
 
     mutable std::mutex mtx;
+    mutable std::mutex resizeMtx;
     std::condition_variable cv;
 
     bool noWait;
@@ -85,6 +86,7 @@ void CicrularBuffer::push(unsigned char* data, unsigned int dataSize) {
     {
         std::unique_lock<std::mutex> lock(mtx);
         if (size == capacity) {
+            std::lock_guard<std::mutex> resizeLock(resizeMtx);
             resize();
         }
         index = tail;
@@ -109,11 +111,13 @@ bool CicrularBuffer::pop(unsigned char* data, unsigned int& dataLen) {
         head = (head + 1) & mask;
         --size;
     }
-    std::lock_guard<std::mutex> indexLock(indexLocks[index]);
+    {
+        std::lock_guard<std::mutex> indexLock(indexLocks[index]);
 
-    std::memcpy(data, buffer[index].ucp, buffer[index].us);
-    dataLen = buffer[index].us;
-    buffer[index].us = bufferLen;
+        std::memcpy(data, buffer[index].ucp, buffer[index].us);
+        dataLen = buffer[index].us;
+        buffer[index].us = bufferLen;
+    }
 
     return true;
 }
