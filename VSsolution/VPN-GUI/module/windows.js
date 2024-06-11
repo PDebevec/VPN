@@ -29,12 +29,11 @@ export const createTray = (app) => {
     tray = new Tray(join(app.getAppPath(), '/assets/logo.png'));
 
     const contextMenu = Menu.buildFromTemplate([
-        { label: 'VPN: OFF' },
         { label: 'Open GUI', click: () => mainWindow.show() },
         { label: 'Quit', click: () => app.quit() }
     ]);
 
-    tray.setToolTip('VPM GUI');
+    tray.setToolTip('VPN GUI');
     tray.setContextMenu(contextMenu);
 
     tray.on('click', () => {
