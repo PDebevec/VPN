@@ -28,16 +28,13 @@ private:
 	UINT8* localLow;
 	UINT8* localHigh;
 
-	bool stopClient;
+	std::atomic<bool> stopClient{ true };
 };
 
 ClientTunnel::ClientTunnel(char* argv[])
-	:Tunnel(argv)
+	:Tunnel(argv), secAddr(nullptr),
+	localLow(PM::ipStringToArray(argv[4])), localHigh(PM::ipStringToArray(argv[5]))
 {
-	secAddr = nullptr;
-	localLow = PM::ipStringToArray(argv[4]);
-	localHigh = PM::ipStringToArray(argv[5]);
-	stopClient = true;
 }
 
 void ClientTunnel::initTunnel()
@@ -153,10 +150,10 @@ void ClientTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 
 		for (size_t i = 0; i < packetsCaught; i++)
 		{
-			singleLen = (packets.get()[2 + nextPacket] << 8) | packets.get()[3 + nextPacket];
-
 			if (addrs[i].IPv6)
 			{
+				singleLen = (packets.get()[4 + nextPacket] << 8) | packets.get()[5 + nextPacket];
+
 				std::memmove(packets.get() + nextPacket, packets.get() + nextPacket + singleLen, recvLen - nextPacket - singleLen);
 
 				std::memmove(&addrs[i], &addrs[i + 1], (packetsCaught - i - 1) * sizeof(WINDIVERT_ADDRESS));
@@ -165,7 +162,10 @@ void ClientTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 				recvLen -= singleLen;
 				continue;
 			}
-			else if (PM::isLocalPacket(packets.get() + nextPacket) == letLocalRange(packets.get() + nextPacket))
+
+			singleLen = (packets.get()[2 + nextPacket] << 8) | packets.get()[3 + nextPacket];
+			
+			if (PM::isLocalPacket(packets.get() + nextPacket) == letLocalRange(packets.get() + nextPacket))
 			{
 				caught->push(packets.get() + nextPacket, singleLen);
 

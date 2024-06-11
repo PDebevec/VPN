@@ -53,14 +53,11 @@ protected:
 };
 
 Tunnel::Tunnel(char* argv[])
+	:arg(argv), udp(nullptr), wd(nullptr),
+	encKey(nullptr), decKey(nullptr)
 {
-	arg = argv;
 	tunnelState = INIT_STATE;
 	stopTunnel = true;
-	udp = nullptr;
-	wd = nullptr;
-	encKey = nullptr;
-	decKey = nullptr;
 	
 	char* copyPtr = new char[strlen(argv[2]) + 1];
 	strcpy_s(copyPtr, strlen(argv[2]) + 1, argv[2]);
@@ -148,6 +145,8 @@ Tunnel::~Tunnel()
 {
 	delete udp;
 	delete wd;
+	
+	stopTunnel = true;
 
 	for (auto* t : tVec)
 	{

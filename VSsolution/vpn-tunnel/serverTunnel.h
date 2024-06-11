@@ -25,14 +25,12 @@ private:
 private:
 	UINT8* secAddr;
 
-	bool stopServer;
+	std::atomic<bool> stopServer{ true };
 };
 
 ServerTunnel::ServerTunnel(char* argv[])
-	:Tunnel(argv)
+	:Tunnel(argv), secAddr(nullptr)
 {
-	secAddr = nullptr;
-	stopServer = true;
 }
 
 void ServerTunnel::initTunnel()
@@ -41,7 +39,7 @@ void ServerTunnel::initTunnel()
 	if (udp == nullptr && wd == nullptr)
 	{
 		udp = new UDPSocket(arg);
-		wd = new BaseWinDivert("inbound and !loopback and ip.SrcAddr != 0.0.0.0 and !impostor", 0);
+		wd = new BaseWinDivert("!ipv6 and inbound and !loopback and ip.SrcAddr != 0.0.0.0 and !impostor", 0);
 	}
 
 	udp->initUDPServer();

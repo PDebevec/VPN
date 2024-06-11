@@ -1,4 +1,4 @@
-#include "VPN.h"
+﻿#include "VPN.h"
 
 int main(int argc, char* argv[]) {
 	/*HWND hwnd = GetConsoleWindow();

@@ -43,7 +43,6 @@ private:
     unsigned int bufferLen;
 
     mutable std::mutex mtx;
-    mutable std::mutex resizeMtx;
     std::condition_variable cv;
 
     bool noWait;
@@ -86,7 +85,6 @@ void CicrularBuffer::push(unsigned char* data, unsigned int dataSize) {
     {
         std::unique_lock<std::mutex> lock(mtx);
         if (size == capacity) {
-            std::lock_guard<std::mutex> resizeLock(resizeMtx);
             resize();
         }
         index = tail;
@@ -129,6 +127,11 @@ void CicrularBuffer::resize()
 
     for (size_t i = 0; i < size; ++i) {
         newBuffer[i] = std::move(buffer[(head + i) & mask]);
+    }
+
+    for (size_t i = size; i < newCapacity; ++i) {
+        newBuffer[i].ucp = new unsigned char[bufferLen];
+        newBuffer[i].us = bufferLen;
     }
 
     buffer = std::move(newBuffer);

@@ -96,7 +96,6 @@ inline const std::atomic<byte>* BaseWinDivert::getState()
 BaseWinDivert::~BaseWinDivert()
 {
 	WinDivertClose(handle);
-	CloseHandle(handle);
 	system("sc stop windivert");
 	delete filter;
 }

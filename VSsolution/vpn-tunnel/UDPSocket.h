@@ -23,7 +23,6 @@ public:
 	void stopUDPSocket();
 
 private:
-	std::mutex mtx;
 	std::atomic<byte> udpState;
 };
 
@@ -77,7 +76,8 @@ bool UDPSocket::initUDPClient()
 bool UDPSocket::recvBufferFrom(char* buf, int len, sockaddr* from, int* fromLen, int& recvLen)
 {
 	recvLen = recvfrom(soc, buf, len, 0, from, fromLen);
-	switch (recvLen)
+	return !(recvLen == 0 || recvLen == SOCKET_ERROR);
+	/*switch (recvLen)
 	{
 	case 0:
 		return true;
@@ -88,13 +88,14 @@ bool UDPSocket::recvBufferFrom(char* buf, int len, sockaddr* from, int* fromLen,
 		return false;
 	default:
 		return true;
-	}
+	}*/
 }
 
 bool UDPSocket::sendBufferTo(char* buf, int len, sockaddr* to, int toLen, int& sendLen)
 {
 	sendLen = sendto(soc, buf, len, 0, to, toLen);
-	switch (sendLen)
+	return !(sendLen == 0 || sendLen == SOCKET_ERROR);
+	/*switch (sendLen)
 	{
 	case 0:
 		return false;
@@ -103,7 +104,7 @@ bool UDPSocket::sendBufferTo(char* buf, int len, sockaddr* to, int toLen, int& s
 		return false;
 	default:
 		return true;
-	}
+	}*/
 }
 
 inline void UDPSocket::stopUDPSocket()
