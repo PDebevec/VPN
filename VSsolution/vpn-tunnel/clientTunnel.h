@@ -52,14 +52,12 @@ void ClientTunnel::initTunnel()
 	if (*udp->getUDPState() != UDP_INITIALIZED)
 		throw "Error initializing UDP socket!";
 	
-	stopClient = false;
-
 	wd->openWinDivert();
 
 	if (*wd->getState() != WD_OPENED)
 		throw "Error opening WinDivert!";
 
-	tunnelState = TUNNEL_INITIALIZED;
+	stopClient = false;
 	switchState = TUNNEL_LOOP;
 }
 
@@ -108,7 +106,6 @@ void ClientTunnel::destroyTunnel()
 	delete[] secAddr;
 
 	switchState = TUNNEL_STOP;
-	tunnelState = TUNNEL_STOP;
 }
 
 bool ClientTunnel::letLocalRange(UINT8* packet) const
@@ -127,7 +124,7 @@ void ClientTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 	UINT packetLen = TUNNEL_MTU_SIZE * WINDIVERT_BATCH_MAX;
 	UINT addrLen = sizeof(WINDIVERT_ADDRESS) * WINDIVERT_BATCH_MAX;
 	UINT recvLen = 0;
-	UINT packetsCaught = 0;
+	size_t packetsCaught = 0;
 	std::atomic<WINDIVERT_ADDRESS> injectAddr;
 	WINDIVERT_ADDRESS temp{};
 	injectAddr.store(temp);
@@ -140,10 +137,10 @@ void ClientTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 		{
 			break;
 		}
-
+		
 		packetsCaught = addrLen / sizeof(WINDIVERT_ADDRESS);
 
-		temp.Timestamp = addrs[static_cast<size_t>(packetsCaught) - 1].Timestamp;
+		temp.Timestamp = addrs[packetsCaught - 1].Timestamp;
 
 		UINT nextPacket = 0;
 		UINT singleLen = 0;
@@ -184,8 +181,6 @@ void ClientTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved)
 				temp.Reflect.Timestamp = addrs[i].Reflect.Timestamp;
 				temp.Reserved3[0] = addrs[i].Reserved3[0];
 				temp.Socket.EndpointId = addrs[i].Socket.EndpointId;
-
-				//wd->sendPacket(packets.get() + nextPacket, singleLen, nullptr, &addrs[i]);
 			}
 
 			nextPacket += singleLen;
@@ -225,7 +220,7 @@ void ClientTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS>& injectAddr, Cicrul
 	WINDIVERT_ADDRESS* batchAddr = new WINDIVERT_ADDRESS[WINDIVERT_BATCH_MAX];
 	WINDIVERT_ADDRESS temp{};
 	UINT recvLen = NULL;
-
+	
 	while (!stopClient)
 	{
 		if (batchAddr[0].Reserved3[0] != injectAddr.load().Reserved3[0])
@@ -269,7 +264,7 @@ void ClientTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS>& injectAddr, Cicrul
 
 				packetNum++;
 				batchLen += recvLen;
-			} while (!recved->empty() && packetNum < 256);
+			} while (!recved->empty() && packetNum < 255);
 
 			if (batchLen == 0 || packetNum == 0)
 			{
@@ -338,7 +333,7 @@ void ClientTunnel::sendLoop(std::atomic<struct sockaddr>& from, CicrularBuffer* 
 	int recvLen = NULL;
 	int fromLen = sizeof(sockaddr_in);
 	int sendLen = NULL;
-
+	//...
 	while (!stopClient)
 	{
 		temp = from.load();
@@ -349,7 +344,7 @@ void ClientTunnel::sendLoop(std::atomic<struct sockaddr>& from, CicrularBuffer* 
 		{
 			caught->pop((UINT8*)buffer.get(), (unsigned int&)recvLen);
 
-			PM::aes_encrypt(reinterpret_cast<UINT8*>(buffer.get()), recvLen, encKey, iv.get(), reinterpret_cast<UINT8*>(encBuffer.get()), recvLen);
+			PM::aes_encrypt((UINT8*)buffer.get(), recvLen, encKey, iv.get(), (UINT8*)encBuffer.get(), recvLen);
 
 			udp->sendBufferTo(encBuffer.get(), recvLen, &temp, fromLen, sendLen);
 		}

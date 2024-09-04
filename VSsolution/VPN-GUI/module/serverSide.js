@@ -213,7 +213,6 @@ function handlePipeMsg(msg) {
     switch (msg.action) {
         case 'tunnel-user':
             return Buffer.concat([Buffer.from(users[msg.userHash].encryption, 'hex'), Buffer.from(users[msg.userHash].secondary + '\0')])
-            break
         case 'disconnect-user':
             return Buffer.from(`FIN${msg.secondary}\0`)
         case 'close-tunnel':

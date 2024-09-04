@@ -1,4 +1,4 @@
-//#pragma once
+#pragma once
 
 #include <regex>
 #include "clientTunnel.h"
@@ -28,7 +28,7 @@ private:
 private:
 	std::atomic<bool> comsLoop;
 	std::atomic<bool> vpnLoop;
-	std::atomic<byte> comsState;
+	byte comsState;
 
 	std::thread* tunnelT;
 	Tunnel* vpnTunnel;
@@ -36,20 +36,18 @@ private:
 };
 
 VPN::VPN(int argc, char* argv[])
+	: vpnLoop(false), tunnelT(nullptr), vpnTunnel(nullptr)
 {
-	vpnLoop = false;
-	tunnelT = nullptr;
-	vpnTunnel = nullptr;
 	coms = new IPCPipe();
 	
 	if (argc >= 4 && isValidIP(argv[2]) && isValidPort(argv[3]))
 	{
 		vpnLoop = true;
 		comsLoop = true;
+		comsState = VPN_INIT;
 	}
-	else throw "Invalid arguments!";
 
-	comsState = VPN_INIT;
+	comsState = VPN_STOP;
 }
 
 inline void VPN::startVPN(int argc, char* argv[])
@@ -118,7 +116,7 @@ void VPN::handleComms(char* buffer)
 			vpnTunnel->closeConnection(buffer + 3);
 			return;
 		}
-
+		
 		init = 0x1;
 		strcpy_s(buffer, 128, "RST\0");
 	}
@@ -131,7 +129,7 @@ void VPN::pipeLoop()
 	DWORD bufferSize = 128;
 	DWORD readLen = NULL;
 	DWORD writeLen = NULL;
-
+	
 	while (comsLoop)
 	{
 		if (!coms->pipeRead(buffer, bufferSize, &readLen))

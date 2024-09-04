@@ -33,8 +33,10 @@ function connectHTTPS(data) {
             .then((res) => {
                 const keys = randomBytes(96).toString('hex').substring(32, 160)
 
-                const plaintext = Buffer.from(keys + res.data.hash, 'hex')
+                user.keys = keys
 
+                const plaintext = Buffer.from(keys + res.data.hash, 'hex')
+                
                 const encrypted = publicEncrypt({
                     key: createPublicKey(readFileSync(data.public, { encoding: 'utf-8' })),
                     padding: constants.RSA_PKCS1_PADDING
@@ -43,6 +45,10 @@ function connectHTTPS(data) {
                 console.log(`https://${data.primary}:${data.port}/encryption/${user.hash}`)
                 https.post(`https://${data.primary}:${data.port}/encryption/${user.hash}`, { encrypted })
                     .then((res) => {
+                        if (user.keys != res.data.keys) {
+                            reject("wrong keys")
+                        }
+
                         user.keys = res.data.keys
 
                         wss = new WebSocket(`wss://${data.primary}:${data.port}/websocket/${user.hash}`, {rejectUnauthorized: false})
@@ -50,7 +56,7 @@ function connectHTTPS(data) {
                         wss.on('open', () => {
                             console.log('connected');
                             resolve(data)
-                            wss.send(JSON.stringify({ mijav: 'string' }));
+                            wss.send(JSON.stringify({ test: 'string' }));
                         });
 
                         wss.on('close', () => {

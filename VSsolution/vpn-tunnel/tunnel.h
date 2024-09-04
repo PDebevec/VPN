@@ -17,7 +17,6 @@ public:
 	Tunnel(char* argv[]);
 
 	void tunnelLoop();
-	const std::atomic<byte>* getTunnelState();
 	virtual void newConnection(char* secondary, char* keys) {};
 	virtual void closeConnection(char* secondary) {};
 	void stopLoop();
@@ -47,7 +46,6 @@ protected:
 protected:
 	std::atomic<bool> stopTunnel;
 	std::atomic<byte> switchState;
-	std::atomic<byte> tunnelState;
 
 	std::vector<std::thread*> tVec;
 };
@@ -56,8 +54,8 @@ Tunnel::Tunnel(char* argv[])
 	:arg(argv), udp(nullptr), wd(nullptr),
 	encKey(nullptr), decKey(nullptr)
 {
-	tunnelState = INIT_STATE;
 	stopTunnel = true;
+	switchState = INIT_STATE;
 	
 	char* copyPtr = new char[strlen(argv[2]) + 1];
 	strcpy_s(copyPtr, strlen(argv[2]) + 1, argv[2]);
@@ -89,47 +87,37 @@ void Tunnel::tunnelLoop()
 
 	stopTunnel = true;
 	switchState = TUNNEL_DESTORY;
-	tunnelState = TUNNEL_STOP;
 }
 
 void Tunnel::threadLoop()
 {
 	unsigned int threadCount = std::thread::hardware_concurrency();
 
+	CicrularBuffer* tc = nullptr;
+	CicrularBuffer* tr = nullptr;
+
 	if(threadCount > 3)
 	{
-		CicrularBuffer* t1c = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
-		CicrularBuffer* t1r = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
-		tVec.push_back(new std::thread(std::bind(&Tunnel::UDPLoop, this, t1c, t1r)));
-		tVec.push_back(new std::thread(std::bind(&Tunnel::WDLoop, this, t1c, t1r)));
+		tc = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
+		tr = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
+		tVec.push_back(new std::thread(std::bind(&Tunnel::UDPLoop, this, tc, tr)));
+		tVec.push_back(new std::thread(std::bind(&Tunnel::WDLoop, this, tc, tr)));
 		if (threadCount > 5)
 		{
-			t1c = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
-			t1r = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
-			tVec.push_back(new std::thread(std::bind(&Tunnel::UDPLoop, this, t1c, t1r)));
-			tVec.push_back(new std::thread(std::bind(&Tunnel::WDLoop, this, t1c, t1r)));
-			/*if (threadCount > 7)
-			{
-				t1c = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
-				t1r = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
-				tVec.push_back(new std::thread(std::bind(&Tunnel::UDPLoop, this, t1c, t1r)));
-				tVec.push_back(new std::thread(std::bind(&Tunnel::WDLoop, this, t1c, t1r)));
-			}*/
+			tc = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
+			tr = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
+			tVec.push_back(new std::thread(std::bind(&Tunnel::UDPLoop, this, tc, tr)));
+			tVec.push_back(new std::thread(std::bind(&Tunnel::WDLoop, this, tc, tr)));
 		}
 	}
 
-	CicrularBuffer* tc = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
-	CicrularBuffer* tr = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
+	tc = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
+	tr = new CicrularBuffer(TUNNEL_BATCH_SIZE, TUNNEL_MTU_SIZE);
 	tVec.push_back(new std::thread(std::bind(&Tunnel::UDPLoop, this, tc, tr)));
 
 	WDLoop(tc, tr);
 
 	switchState = TUNNEL_DESTORY;
-}
-
-inline const std::atomic<byte>* Tunnel::getTunnelState()
-{
-	return &tunnelState;
 }
 
 inline void Tunnel::stopLoop()

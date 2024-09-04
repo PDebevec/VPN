@@ -47,14 +47,12 @@ void ServerTunnel::initTunnel()
 	if (*udp->getUDPState() != UDP_INITIALIZED)
 		throw "Erorr initializing UDP socket!";
 
-	stopServer = false;
-
 	wd->openWinDivert();
 
 	if (*wd->getState() != WD_OPENED)
 		throw "Error opening WinDivert!";
 
-	tunnelState = TUNNEL_INITIALIZED;
+	stopServer = false;
 	switchState = TUNNEL_LOOP;
 }
 
@@ -103,7 +101,6 @@ void ServerTunnel::destroyTunnel()
 	delete decKey;
 	delete[] secAddr;
 
-	tunnelState = TUNNEL_INITIALIZED;
 	switchState = INIT_STATE;
 }
 
@@ -119,7 +116,7 @@ void ServerTunnel::WDLoop(CicrularBuffer* caught, CicrularBuffer* recved) {
 	WINDIVERT_ADDRESS temp{};
 	injectAddr.store(temp);
 	temp.Outbound = 1;
-
+	//
 	std::thread* injectThread = new std::thread(&ServerTunnel::injectLoop, this, std::ref(injectAddr), recved);
 
 	while (!stopServer)
@@ -241,7 +238,7 @@ void ServerTunnel::injectLoop(std::atomic<WINDIVERT_ADDRESS>& injectAddr, Cicrul
 
 				packetNum++;
 				batchLen += recvLen;
-			} while (!recved->empty() && packetNum < 256);
+			} while (!recved->empty() && packetNum < 255);
 
 			if (packetNum == 0 || batchLen == 0)
 			{
@@ -266,24 +263,24 @@ void ServerTunnel::UDPLoop(CicrularBuffer* caught, CicrularBuffer* recved) {
 	printf("UDP loop\n");
 	std::unique_ptr<char[]> buffer(new char[WINDIVERT_MTU_MAX]);
 	int bufferSize = WINDIVERT_MTU_MAX;
-	std::atomic<struct sockaddr> from;
-	sockaddr temp = *(sockaddr*)udp->getSocketAddr();
-	from.store(temp);
+	std::atomic<struct sockaddr> temp;
+	sockaddr from = *(sockaddr*)udp->getSocketAddr();
+	temp.store(from);
 	int fromLen = sizeof(sockaddr_in);
 	int recvLen = NULL;
 
-	std::thread* sendThread = new std::thread(&ServerTunnel::sendLoop, this, std::ref(from), caught);
+	std::thread* sendThread = new std::thread(&ServerTunnel::sendLoop, this, std::ref(temp), caught);
 
 	while (!stopServer)
 	{
-		if (!udp->recvBufferFrom(buffer.get(), bufferSize, &temp, &fromLen, recvLen))
+		if (!udp->recvBufferFrom(buffer.get(), bufferSize, &from, &fromLen, recvLen))
 		{
 			break;
 		}
 
-		from.store(temp);
+		temp.store(from);
 
-		recved->push(reinterpret_cast<UINT8*>(buffer.get()), recvLen);
+		recved->push((UINT8*)buffer.get(), recvLen);
 	}
 
 	stopServer = true;
@@ -309,7 +306,7 @@ void ServerTunnel::sendLoop(std::atomic<struct sockaddr>& from, CicrularBuffer* 
 	int recvLen = NULL;
 	int fromLen = sizeof(sockaddr_in);
 	int sendLen = NULL;
-
+	
 	while (!stopServer)
 	{
 		temp = from.load();
@@ -320,7 +317,7 @@ void ServerTunnel::sendLoop(std::atomic<struct sockaddr>& from, CicrularBuffer* 
 		{
 			caught->pop((UINT8*)buffer.get(), (unsigned int&)recvLen);
 
-			PM::aes_encrypt(reinterpret_cast<UINT8*>(buffer.get()), recvLen, encKey, iv.get(), reinterpret_cast<UINT8*>(encBuffer.get()), recvLen);
+			PM::aes_encrypt((UINT8*)buffer.get(), recvLen, encKey, iv.get(), (UINT8*)encBuffer.get(), recvLen);
 
 			udp->sendBufferTo(encBuffer.get(), recvLen, &temp, fromLen, sendLen);
 		}

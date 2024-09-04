@@ -12,39 +12,39 @@
 <body>
     <div class="container-fluid pe-5">
         <div class="row mb-2" id="server-cert">
-            <label for="cert" class="col-sm-3 col-form-label">Server Certificate</label>
+            <label for="cert" class="col-sm-3 col-form-label">Certifikat strežnika</label>
             <div class="col-sm-9 input-group">
                 <input type="file" class="form-control" id="cert" tabindex="1" accept=".crt">
             </div>
         </div>
         <div class="row mb-2" id="server-key">
-            <label for="key" class="col-sm-3 col-form-label">Server Key</label>
+            <label for="key" class="col-sm-3 col-form-label">Ključ strežnika</label>
             <div class="col-sm-9 input-group">
                 <input type="file" class="form-control" id="key" tabindex="2" accept=".key">
             </div>
-            <a href="#" id="create-keycert">Create SSL certificate.</a>
-            <a href="#" id="create-keypair">Create RSA key pair.</a>
+            <a href="#" id="create-keycert">Ustvari SSL certifikat.</a>
+            <a href="#" id="create-keypair">Ustvari par RSA ključev.</a>
         </div>
         <div class="row mb-2" id="client-key">
-            <label for="encryption" class="col-sm-3 col-form-label">Public Key</label>
+            <label for="encryption" class="col-sm-3 col-form-label">Javni ključ</label>
             <div class="col-sm-9 input-group">
                 <input type="file" class="form-control" id="public" tabindex="3" accept=".key">
             </div>
         </div>
         <div class="row mb-2">
-            <label for="primary" class="col-sm-3 col-form-label">Server IP</label>
+            <label for="primary" class="col-sm-3 col-form-label">IP strežnika</label>
             <div class="col-sm-9 input-group">
                 <input type="text" class="form-control" id="primary" tabindex="4">
             </div>
         </div>
         <div class="row mb-2">
-            <label for="port" class="col-sm-3 col-form-label">Server Port</label>
+            <label for="port" class="col-sm-3 col-form-label">Vrata strežnika</label>
             <div class="col-sm-9 input-group">
                 <input type="number" class="form-control" id="port" min="1" max="65535" tabindex="5">
             </div>
         </div>
         <div class="row mb-2" id="local-ips">
-            <label for="primary" class="col-sm-3 col-form-label">Internal IP Range</label>
+            <label for="primary" class="col-md-3 col-form-label">Interni obseg IP naslovov</label>
             <div class="col-sm-9 input-group">
                 <input type="text" class="form-control" id="low" tabindex="6">
                 <input type="text" class="form-control" id="high" tabindex="7">
@@ -52,8 +52,8 @@
         </div>
         <div class="row">
             <div class="col-sm-10">
-                <button type="button" class="btn btn-primary" id="confirm">Confirm</button>
-                <button type="button" class="btn btn-primary" id="clear">Clear</button>
+                <button type="button" class="btn btn-primary" id="confirm">Potrdi</button>
+                <button type="button" class="btn btn-danger" id="clear">Počisti</button>
             </div>
         </div>
     </div>
